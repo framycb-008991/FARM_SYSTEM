@@ -2,7 +2,7 @@ services:
   - type: web
     name: farm-system-render-demo
     runtime: node
-    rootDir: Antigravity Programming & AI
+    rootDir: antigravity-programming-ai
     buildCommand: npm install
     startCommand: npm start
     envVars:
