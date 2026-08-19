@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mecuzi Farm Management System — Fundação Tzu Chi Moçambique</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="images/tzu-chi-logo.png">
+
+  <!-- Google Fonts: Poppins & Noto Sans TC (I18N_SPEC.md §7) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+
+  <!-- ========================================================================
+       Top Navigation Bar (64px Height, White, Logo Lockup, Account Role Label)
+       ======================================================================== -->
+  <header class="app-header">
+    <div class="header-container">
+
+      <!-- Brand Logo Lockup (Left) -->
+      <a href="#" class="brand-lockup">
+        <img src="images/tzu-chi-logo.png" alt="Fundação Tzu Chi Moçambique" class="brand-logo-img">
+        <div class="brand-divider"></div>
+        <div class="brand-text-block">
+          <span class="brand-app-name" data-i18n="app.title">Mecuzi Farm Management</span>
+          <span class="brand-foundation-sub" data-i18n="app.subtitle">Fundação Tzu Chi Moçambique</span>
+        </div>
+      </a>
+
+      <!-- Header Utilities (Right) -->
+      <div class="header-utility-zone">
+
+        <!-- Search -->
+        <div class="header-search-box">
+          <img src="images/icon-search-circle.png" alt="Search" class="search-icon-img">
+          <input type="text" id="globalSearchInput" class="search-input" data-i18n-placeholder="app.search_placeholder" placeholder="Pesquisar talhões, relatórios...">
+        </div>
+
+        <!-- Current Account Role — non-interactive label (ACCESS_CONTROL_FIX.md §2.2).
+             Role comes from the employee account's JWT claim, set by an Administrator.
+             It is never user-selectable. -->
+        <div class="select-pill role-label-pill" id="roleLabelPill" title="Papel atribuído à conta (definido pelo Administrador)">
+          <span style="font-size: 10px; color: var(--color-text-muted); margin-right: 0.3rem;" data-i18n="app.role_label">PAPEL</span>
+          <span class="role-label-text" id="currentRoleLabel">—</span>
+        </div>
+
+        <!-- Login / Logout (Employee # + PIN + SMS OTP) -->
+        <button class="btn-auth-demo" id="openAuthModalBtn" title="Autenticação com Nº Funcionário + PIN + OTP">
+          <span id="authBtnLabel" data-i18n="app.btn_login">Entrar</span>
+        </button>
+
+        <!-- Offline / Online Status Dot -->
+        <div class="status-chip" id="connectivityChip" title="Clique para alternar modo Offline de Campo">
+          <div class="status-indicator-dot" id="connectivityDot"></div>
+          <span id="connectivityText" data-i18n="app.online_status">Online</span>
+        </div>
+
+        <!-- Compact Language Switcher (I18N_SPEC.md §5) -->
+        <div class="select-pill" title="Selecionar Idioma / Language">
+          <span style="font-size: 10px; color: var(--color-text-muted); margin-right: 0.3rem;" data-i18n="app.lang_label">IDIOMA</span>
+          <select id="langSelect" aria-label="Language Selector">
+            <option value="pt-MZ">PT (Moçambique)</option>
+            <option value="en-GB">EN (UK)</option>
+            <option value="zh-TW">中文 (繁體)</option>
+          </select>
+        </div>
+
+        <!-- AI Copilot Trigger -->
+        <button class="btn-copilot" id="openCopilotBtn">
+          <span data-i18n="app.copilot_btn">Assistente AI</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       Main App Layout (Sidebar + Main Content)
+       ======================================================================== -->
+  <div class="app-layout">
+
+    <!-- ======================================================================
+         Sidebar Navigation (Adapts dynamically to the active role)
+         ====================================================================== -->
+    <aside class="app-sidebar" aria-label="Sidebar Navigation">
+
+      <div class="sidebar-section-title" id="sidebarRoleTitle" data-i18n="app.sidebar_role_title">INTERFACE ATIVA</div>
+      <ul class="sidebar-nav-list" id="sidebarNavList">
+        <!-- Rendered dynamically by js/app.js based on active role & locale -->
+      </ul>
+
+      <!-- Sidebar Footer with Leaf Motif Accent -->
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-card">
+          <div class="sidebar-footer-title" data-i18n="app.unit_footer_title">UNIDADE MECUZI</div>
+          <div class="sidebar-footer-desc" data-i18n="app.unit_footer_desc">
+            200 ha Caju • 6 Talhões<br>
+            SOP PON-AGR-MEC-V2.0
+          </div>
+        </div>
+        <img src="images/cashew-leaf-thumb.png" alt="Leaf Motif" class="sidebar-leaf-motif">
+      </div>
+
+    </aside>
+
+    <!-- ======================================================================
+         Main Content Area
+         ====================================================================== -->
+    <main class="app-main-content">
+
+      <!-- Role Summary / Hero Welcome Banner -->
+      <section class="role-hero-banner" id="roleHeroBanner">
+        <img src="images/cashew-leaf-main.png" alt="Watermark Leaf" class="leaf-watermark-bg">
+        <div class="hero-text-group">
+          <h1 id="heroBannerTitle" data-i18n="hero.tm_title">Painel Executivo — Dr. Alberto Mondlane (CEO)</h1>
+          <p id="heroBannerSubtitle" data-i18n="hero.tm_sub">Visão estratégica consolidada • 200 ha • Rendimento Acumulado: 48.5 Ton • Sem permissão de escrita</p>
+        </div>
+        <img src="images/cashews-thumb.png" alt="Cashew Crop Mecuzi" class="hero-image-crop">
+      </section>
+
+      <!-- Top Horizontal Critical Alert Bar (Collapsible) -->
+      <section class="top-alert-bar-wrapper" id="topAlertBar">
+        <div class="alert-bar-header" id="alertBarHeader" title="Clique para expandir/recolher alertas">
+          <div class="alert-bar-left">
+            <span class="alert-count-badge" id="alertCountBadge" data-i18n="alerts.badge">4 CRÍTICOS</span>
+          </div>
+
+          <!-- Horizontal Ticker Chips (filtered per role by js/app.js).
+               Climate & fire alerts are injected into this SAME list by
+               renderClimateAlerts() — identical visual treatment and
+               click-to-expand behavior (WEATHER_INTEGRATION_SPEC.md §6). -->
+          <div class="alert-ticker-list" id="alertTickerList">
+            <span class="alert-ticker-chip" data-alert="water" onclick="handleAlertClick('water')" data-i18n="alerts.water_chip">Furo 2: Anomalia &gt;120%</span>
+            <span class="alert-ticker-chip" data-alert="mech" onclick="handleAlertClick('mech')" data-i18n="alerts.mech_chip">Trator #2: Imobilizado</span>
+            <span class="alert-ticker-chip" data-alert="coverage" onclick="handleAlertClick('coverage')" data-i18n="alerts.coverage_chip">Ponto C: Cobertura</span>
+            <span class="alert-ticker-chip" data-alert="fuel" onclick="handleAlertClick('fuel')" data-i18n="alerts.fuel_chip">Combustível: Desvio &gt;15%</span>
+            <span class="alert-ticker-chip" data-alert="budget" style="display:none" onclick="handleAlertClick('budget')" data-i18n="alerts.budget_chip">Orçamento: prazo dia 20</span>
+          </div>
+
+          <button class="alert-toggle-btn" id="toggleAlertsBtn" type="button" title="Expandir/Recolher">
+            <span class="alert-toggle-icon">▼</span>
+          </button>
+        </div>
+
+        <!-- Expandable Drawer Details (climate/fire cards injected into this
+             SAME grid by renderClimateAlerts — WEATHER_INTEGRATION_SPEC.md §6) -->
+        <div class="alert-drawer-body">
+          <div class="alert-cards-grid" id="alertCardsGrid">
+            <div class="alert-detail-card border-danger">
+              <div class="alert-detail-top">
+                <span class="alert-card-rule text-danger" data-i18n="alerts.water_tag">ÁGUA &gt;120%</span>
+                <span class="badge badge-danger">BH-PTA-02</span>
+              </div>
+              <div class="alert-card-text" data-i18n="alerts.water_desc">Furo 2 registou 138% da média móvel (55.2 m³ vs 40.0 m³). Fuga provável.</div>
+              <div class="alert-card-footer">
+                <span class="alert-card-sla" data-i18n="alerts.water_sla">SLA: Inspeção no próprio dia</span>
+                <a class="alert-card-action" onclick="handleAlertClick('water')" data-i18n="alerts.water_action">Ver Talhões →</a>
+              </div>
+            </div>
+
+            <div class="alert-detail-card border-danger">
+              <div class="alert-detail-top">
+                <span class="alert-card-rule text-danger" data-i18n="alerts.mech_tag">IMOBILIZADO</span>
+                <span class="badge badge-danger">TRAC-02</span>
+              </div>
+              <div class="alert-card-text" data-i18n="alerts.mech_desc">Trator #2 falhou checklist pré-operacional por fuga no sistema hidráulico.</div>
+              <div class="alert-card-footer">
+                <span class="alert-card-sla" data-i18n="alerts.mech_sla">SLA: Bloqueio em 15 minutos</span>
+                <a class="alert-card-action" onclick="handleAlertClick('mech')" data-i18n="alerts.mech_action">Ver Máquinas →</a>
+              </div>
+            </div>
+
+            <div class="alert-detail-card">
+              <div class="alert-detail-top">
+                <span class="alert-card-rule" data-i18n="alerts.coverage_tag">COBERTURA</span>
+                <span class="badge badge-warning">Point_C</span>
+              </div>
+              <div class="alert-card-text" data-i18n="alerts.coverage_desc">Pedido de folga simultâneo para Técnico e Comissionário do Ponto C bloqueado.</div>
+              <div class="alert-card-footer">
+                <span class="alert-card-sla" data-i18n="alerts.coverage_sla">SLA: Liderança técnica obrigatória</span>
+                <a class="alert-card-action" onclick="handleAlertClick('coverage')" data-i18n="alerts.coverage_action">Ver Equipa →</a>
+              </div>
+            </div>
+
+            <div class="alert-detail-card">
+              <div class="alert-detail-top">
+                <span class="alert-card-rule" data-i18n="alerts.fuel_tag">ORÇAMENTO &gt;15%</span>
+                <span class="badge badge-warning">ADM-FUEL-01</span>
+              </div>
+              <div class="alert-card-text" data-i18n="alerts.fuel_desc">Linha de combustível apresenta +16.2% de desvio face ao aprovado.</div>
+              <div class="alert-card-footer">
+                <span class="alert-card-sla" data-i18n="alerts.fuel_sla">SLA: Congelamento em 48h</span>
+                <a class="alert-card-action" onclick="handleAlertClick('fuel')" data-i18n="alerts.fuel_action">Ver Orçamento →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           INTERFACE 1: TOP MANAGEMENT (Reports & Read-Only Insights)
+           ==================================================================== -->
+      <div id="interface_top_management" class="role-interface-container">
+
+        <!-- Tab 1: Overview -->
+        <div class="tab-pane active" id="pane_tm_overview">
+          <div class="grid-cards-4">
+            <div class="stat-tile">
+              <div class="stat-top">
+                <span class="stat-label" data-i18n="tm.stats.active_fields">Talhões Ativos</span>
+                <span class="badge badge-success">100%</span>
+              </div>
+              <div class="stat-value">6 / 6</div>
+              <div class="stat-trend trend-good" data-i18n="tm.stats.active_fields_sub">200 ha em produção plena</div>
+            </div>
+
+            <div class="stat-tile">
+              <div class="stat-top">
+                <span class="stat-label" data-i18n="tm.stats.total_yield">Produção Acumulada</span>
+                <span class="badge badge-success">+18%</span>
+              </div>
+              <div class="stat-value">48.5 Ton</div>
+              <div class="stat-trend trend-good" data-i18n="tm.stats.total_yield_sub">Meta Safra 2026: 65 Ton</div>
+            </div>
+
+            <div class="stat-tile">
+              <div class="stat-top">
+                <span class="stat-label" data-i18n="tm.stats.critical_alerts">Alertas Críticos</span>
+                <span class="badge badge-warning">1 Ativo</span>
+              </div>
+              <div class="stat-value">1 Talhão</div>
+              <div class="stat-trend trend-warning" data-i18n="tm.stats.critical_alerts_sub">Talhão A-02 sob inspeção</div>
+            </div>
+
+            <div class="stat-tile">
+              <div class="stat-top">
+                <span class="stat-label" data-i18n="tm.stats.techs_field">Técnicos no Terreno</span>
+                <span class="badge badge-neutral">33 Pax</span>
+              </div>
+              <div class="stat-value">3 Setores</div>
+              <div class="stat-trend trend-good" data-i18n="tm.stats.techs_field_sub">Pontos A, B e C cobertos</div>
+            </div>
+          </div>
+
+          <!-- Org-wide aggregated climate/fire risk summary (§7: Top Management
+               sees the aggregate ONLY, never per-field detail) -->
+          <div id="tmClimateSummary"><!-- Rendered via JS --></div>
+
+          <!-- Fields Summary Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-title" data-i18n="tm.overview_title">Resumo Executivo dos Talhões (200 ha)</span>
+              </div>
+              <span class="badge badge-neutral" data-i18n="tm.readonly_badge">Apenas Leitura (N1)</span>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="tm.th_field">Talhão</th>
+                    <th data-i18n="tm.th_location">Localização</th>
+                    <th data-i18n="tm.th_area">Área</th>
+                    <th data-i18n="tm.th_crop">Cultura Atual</th>
+                    <th data-i18n="tm.th_tech">Técnico Responsável</th>
+                    <th data-i18n="tm.th_forecast">Previsão Safra</th>
+                    <th data-i18n="tm.th_status">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tmOverviewTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Yield Reports -->
+        <div class="tab-pane" id="pane_tm_yield">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-title" data-i18n="tm.yield_title">Relatório Consolidado de Rendimento & Colheita</span>
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary btn-sm" onclick="exportCSVReport()" data-i18n="tm.btn_export_csv">Exportar CSV</button>
+                <button class="btn btn-primary btn-sm" onclick="exportPDFReport()" data-i18n="tm.btn_export_pdf">Exportar Relatório PDF</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="tm.th_period">Período</th>
+                    <th data-i18n="tm.th_caju_kg">Castanha de Caju (kg)</th>
+                    <th data-i18n="tm.th_feijao_kg">Feijão Bóer / Outros (kg)</th>
+                    <th data-i18n="tm.th_target_kg">Meta Prevista (kg)</th>
+                    <th data-i18n="tm.th_total_value">Valor Estimado (MZN)</th>
+                    <th data-i18n="tm.th_performance">Desempenho</th>
+                  </tr>
+                </thead>
+                <tbody id="tmYieldTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Trends -->
+        <div class="tab-pane" id="pane_tm_trends">
+          <div class="grid-cards-2">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" data-i18n="tm.trends_title">Trajetória de Rendimento Mensal (Jan–Jun 2026)</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Jan (4.2t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 42%; background: var(--color-primary); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Fev (5.8t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 58%; background: var(--color-primary); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Mar (7.9t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 79%; background: var(--color-primary); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Abr (9.1t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 91%; background: var(--color-primary); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Mai (11.2t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 100%; background: var(--color-accent); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                  <span>Jun (10.3t)</span>
+                  <div style="width: 70%; background: #E2E8DE; border-radius: 999px; height: 10px;">
+                    <div style="width: 95%; background: var(--color-primary); height: 100%; border-radius: 999px;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" data-i18n="tm.donors_title">Pacotes de Relatório Institucional (Doadores)</span>
+              </div>
+              <p style="font-size: 12px; color: var(--color-text-muted);" data-i18n="tm.donors_desc">Gere automaticamente relatórios em PDF, Excel ou PowerPoint formatados segundo as diretrizes da Fundação Tzu Chi.</p>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                <button class="btn btn-secondary" onclick="exportPDFReport()" data-i18n="tm.btn_download_dossier">Descarregar Dossiê Mensal (.PDF)</button>
+                <button class="btn btn-secondary" onclick="exportCSVReport()" data-i18n="tm.btn_export_ledger">Exportar Base de Dados Estruturada (.CSV)</button>
+                <button class="btn btn-primary" onclick="showToast('Relatório Estratégico em Chinês Tradicional gerado!', 'success')" data-i18n="tm.btn_council_report">Relatório para o Conselho (繁體中文)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Fields Map / Grid -->
+        <div class="tab-pane" id="pane_tm_fields">
+          <div class="grid-cards-3" id="tmFieldsGrid">
+            <!-- Rendered via JS localized -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           INTERFACE 2: FARM TECHNICIAN (Field Data Entry & Offline Sync)
+           ==================================================================== -->
+      <div id="interface_farm_technician" class="role-interface-container" style="display: none;">
+
+        <!-- Tab 1: My Fields -->
+        <div class="tab-pane active" id="pane_ft_myfields">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ft.myfields_title">Talhões Atribuídos ao Técnico</span>
+              <div style="display:flex;gap:0.4rem;align-items:center;">
+                <span class="badge badge-success" id="ftTechnicianBadge">—</span>
+                <!-- "Report Fire / Smoke" quick-action — 1 tap from the home
+                     screen (WEATHER_INTEGRATION_SPEC.md §2.4) -->
+                <button class="btn btn-danger btn-sm" onclick="openFireReportModal()" data-i18n="fire.btn_report">Reportar Fogo / Fumo</button>
+              </div>
+            </div>
+            <div class="grid-cards-2" id="ftMyFieldsGrid">
+              <!-- Rendered via JS localized -->
+            </div>
+          </div>
+          <!-- Per-field weather state, cached locally for offline viewing (§7) -->
+          <div id="ftClimateContent"><!-- Rendered via JS --></div>
+        </div>
+
+        <!-- Tab 2: New Field Report (Thumb-friendly Form) -->
+        <div class="tab-pane" id="pane_ft_newreport">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ft.newreport_title">Novo Registo de Campo (Offline-First)</span>
+              <div style="display:flex;gap:0.4rem;align-items:center;">
+                <span class="badge badge-neutral" id="ftFormOfflineBadge" data-i18n="ft.badge_offline_safe">Salva Localmente sem Sinal</span>
+                <button type="button" class="btn btn-danger btn-sm" onclick="openFireReportModal()" data-i18n="fire.btn_report">Reportar Fogo / Fumo</button>
+              </div>
+            </div>
+
+            <form id="ftReportForm" onsubmit="handleFieldReportSubmit(event)">
+              <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+
+                <!-- Report Type Touch Toggles (>=44px touch targets) -->
+                <div class="form-group">
+                  <label class="form-label" data-i18n="ft.lbl_activity_type">Tipo de Atividade / Registo:</label>
+                  <div class="touch-btn-grid">
+                    <button type="button" class="touch-type-btn active" data-type="harvest" onclick="selectReportType('harvest', this)" data-i18n="ft.btn_type_harvest">Colheita</button>
+                    <button type="button" class="touch-type-btn" data-type="inspection" onclick="selectReportType('inspection', this)" data-i18n="ft.btn_type_inspection">Inspeção Fitossanitária</button>
+                    <button type="button" class="touch-type-btn" data-type="planting" onclick="selectReportType('planting', this)" data-i18n="ft.btn_type_planting">Plantio / Tratos</button>
+                    <button type="button" class="touch-type-btn" data-type="issue" onclick="selectReportType('issue', this)" data-i18n="ft.btn_type_issue">Anomalia / Praga</button>
+                  </div>
+                  <input type="hidden" id="reportTypeInput" value="harvest">
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" data-i18n="ft.lbl_target_field">Talhão de Destino:</label>
+                    <select class="form-control" id="reportFieldSelect">
+                      <option value="FLD-01">Talhão A-01 (Pomar Norte - 35 ha)</option>
+                      <option value="FLD-02">Talhão A-02 (Expansão A - 30 ha)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" data-i18n="ft.lbl_quantity">Quantidade / Medição (kg ou m²):</label>
+                    <input type="number" step="0.5" class="form-control" id="reportQtyInput" placeholder="Ex: 850" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" data-i18n="ft.lbl_notes">Observações de Campo / Sanidade:</label>
+                  <textarea class="form-control" id="reportNotesInput" rows="2" data-i18n-placeholder="ft.notes_placeholder" placeholder="Detalhes observados no lote..."></textarea>
+                </div>
+
+                <!-- Camera Upload / Photo Attachment Simulation -->
+                <div class="form-group">
+                  <label class="form-label" data-i18n="ft.lbl_evidence_photo">Fotografia de Evidência de Campo:</label>
+                  <div class="camera-preview-box" id="cameraBox" onclick="simulateCameraCapture()">
+                    <span style="font-size: 11px; font-weight: 600; color: var(--color-primary);" data-i18n="ft.camera_prompt">Tocar para Capturar Foto com Câmara</span>
+                    <span id="photoFileName" style="font-size: 10px; color: var(--color-text-muted);" data-i18n="ft.no_photo_attached">Nenhuma foto anexada</span>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.5rem; font-size: 13px;">
+                  <span data-i18n="ft.btn_save_device">Gravar Registo no Dispositivo</span>
+                  <span class="btn-arrow-circle">→</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Tab 3: Sync Status -->
+        <div class="tab-pane" id="pane_ft_syncstatus">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ft.syncstatus_title">Fila de Sincronização de Campo (POST /sync/field-reports)</span>
+              <button class="btn btn-primary btn-sm" onclick="triggerBatchSync()" data-i18n="ft.btn_sync_all">Sincronizar Todos Agora</button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="ft.th_client_uuid">ID Cliente (UUID)</th>
+                    <th data-i18n="ft.th_field_name">Talhão</th>
+                    <th data-i18n="ft.th_type">Tipo</th>
+                    <th data-i18n="ft.th_timestamp">Data / Hora</th>
+                    <th data-i18n="ft.th_device_state">Estado no Dispositivo</th>
+                    <th data-i18n="ft.th_review_state">Revisão</th>
+                  </tr>
+                </thead>
+                <tbody id="ftSyncStatusTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           INTERFACE 3: PRODUCTION MANAGER (Review Queue & Crop Cycles)
+           ==================================================================== -->
+      <div id="interface_production_manager" class="role-interface-container" style="display: none;">
+
+        <!-- Tab 1: Review Queue -->
+        <div class="tab-pane active" id="pane_pm_review">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-title" data-i18n="pm.review_title">Fila de Revisão de Registos de Campo</span>
+              </div>
+              <span class="badge badge-warning" data-i18n="pm.badge_mandatory_approval">Aprovação Mandatada</span>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="pm.th_id_date">ID / Data</th>
+                    <th data-i18n="pm.th_technician">Técnico</th>
+                    <th data-i18n="pm.th_field">Talhão</th>
+                    <th data-i18n="pm.th_type_qty">Tipo / Quantidade</th>
+                    <th data-i18n="pm.th_notes">Notas</th>
+                    <th data-i18n="pm.th_actions">Ações de Revisão</th>
+                  </tr>
+                </thead>
+                <tbody id="pmReviewTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Crop Cycles -->
+        <div class="tab-pane" id="pane_pm_cycles">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="pm.cycles_title">Gestão de Ciclos de Cultivo (Plantio à Colheita)</span>
+              <button class="btn btn-primary btn-sm" onclick="showToast('Abrir formulário de novo ciclo de cultivo', 'success')" data-i18n="pm.btn_new_cycle">+ Novo Ciclo</button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="pm.th_cycle_code">Código Ciclo</th>
+                    <th data-i18n="pm.th_field">Talhão</th>
+                    <th data-i18n="pm.th_cycle_crop">Cultura</th>
+                    <th data-i18n="pm.th_planting_date">Data Plantio</th>
+                    <th data-i18n="pm.th_expected_harvest">Previsão Colheita</th>
+                    <th data-i18n="pm.th_progress">Progresso</th>
+                    <th data-i18n="pm.th_cycle_status">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="pmCropCyclesTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Field Assignments -->
+        <div class="tab-pane" id="pane_pm_assignments">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="pm.assignments_title">Atribuição de Técnicos e Lideranças aos Talhões</span>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="pm.th_field">Talhão</th>
+                    <th data-i18n="tm.th_area">Área</th>
+                    <th data-i18n="tm.th_location">Ponto</th>
+                    <th data-i18n="pm.th_assign_current">Técnico Atual</th>
+                    <th data-i18n="pm.th_assign_reassign">Reatribuir Técnico</th>
+                  </tr>
+                </thead>
+                <tbody id="pmAssignmentsTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Reports -->
+        <div class="tab-pane" id="pane_pm_reports">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="pm.scorecard_title">Desempenho & Pontualidade das Submissões dos Técnicos</span>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="pm.th_technician">Técnico</th>
+                    <th data-i18n="adm.th_emp_number">Nº Funcionário</th>
+                    <th data-i18n="tm.th_location">Ponto</th>
+                    <th data-i18n="pm.th_punctuality">Submissões no Prazo</th>
+                    <th data-i18n="pm.th_data_quality">Qualidade dos Dados</th>
+                    <th data-i18n="pm.th_operational_score">Score Operacional</th>
+                  </tr>
+                </thead>
+                <tbody id="pmScorecardTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           INTERFACE 4: ADMINISTRATION (Workforce, Roles, Audit Log, Settings)
+           ==================================================================== -->
+      <div id="interface_administrator" class="role-interface-container" style="display: none;">
+
+        <!-- Tab 1: Employees Directory & PIN Management -->
+        <div class="tab-pane active" id="pane_adm_employees">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-title" data-i18n="adm.employees_title">Gestão de Colaboradores & Autenticação (TZ# + PIN)</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="showProvisionEmployeeModal()" data-i18n="adm.btn_create_employee">+ Criar Colaborador</button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="adm.th_emp_number">Nº Funcionário</th>
+                    <th data-i18n="adm.th_full_name">Nome Completo</th>
+                    <th data-i18n="adm.th_phone_otp">Telefone (SMS OTP)</th>
+                    <th data-i18n="adm.th_system_role">Papel no Sistema</th>
+                    <th data-i18n="adm.th_account_status">Estado</th>
+                    <th data-i18n="adm.th_pin_management">Gestão de PIN</th>
+                  </tr>
+                </thead>
+                <tbody id="admEmployeesTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Roles & Fields Metadata -->
+        <div class="tab-pane" id="pane_adm_rolesfields">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="adm.fields_metadata_title">Metadados dos Talhões & Infraestruturas de Água</span>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="adm.th_field_code">Código Talhão</th>
+                    <th data-i18n="adm.th_field_name">Nome do Talhão</th>
+                    <th data-i18n="adm.th_gps_coords">Coordenadas GPS</th>
+                    <th data-i18n="adm.th_area_ha">Área (ha)</th>
+                    <th data-i18n="adm.th_water_source">Fonte de Água</th>
+                    <th data-i18n="pm.th_actions">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="admFieldsMetadataTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Searchable Audit Log -->
+        <div class="tab-pane" id="pane_adm_audit">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <span class="card-title" data-i18n="adm.audit_title">Registo de Auditoria do Sistema (Audit Log)</span>
+              </div>
+              <input type="text" id="auditSearchInput" class="form-control" style="width: 200px; padding: 0.25rem 0.5rem; font-size: 11px;" data-i18n-placeholder="adm.audit_search_placeholder" placeholder="Filtrar por ação ou ator..." onkeyup="filterAuditLogs()">
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="adm.th_log_id">ID Log</th>
+                    <th data-i18n="adm.th_log_time">Data / Hora</th>
+                    <th data-i18n="adm.th_log_actor">Ator</th>
+                    <th data-i18n="adm.th_log_action">Ação</th>
+                    <th data-i18n="adm.th_log_target">Entidade Alvo</th>
+                    <th data-i18n="adm.th_log_details">Detalhes & Metadados</th>
+                  </tr>
+                </thead>
+                <tbody id="admAuditLogTableBody">
+                  <!-- Rendered via JS localized -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Settings -->
+        <div class="tab-pane" id="pane_adm_settings">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="adm.settings_title">Configurações de Segurança & Operações da Fundação</span>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.5rem;">
+              <div class="form-group">
+                <label class="form-label" data-i18n="adm.lbl_otp_expiry">Validade do Código SMS OTP (minutos):</label>
+                <input type="number" class="form-control" value="5" id="settingOtpExpiry">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="adm.lbl_max_attempts">Tentativas Máximas de PIN antes de Bloqueio:</label>
+                <input type="number" class="form-control" value="5" id="settingMaxAttempts">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="adm.lbl_session_timeout">Tempo Limite de Sessão JWT (minutos):</label>
+                <input type="number" class="form-control" value="15" id="settingSessionTimeout">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="adm.lbl_sms_provider">Fornecedor de SMS Gateway (+258 Moçambique):</label>
+                <input type="text" class="form-control" value="Twilio Verify API (+258)" readonly>
+              </div>
+            </div>
+            <div style="margin-top: 0.85rem;">
+              <button class="btn btn-primary btn-sm" onclick="showToast('Configurações salvas com sucesso no servidor!', 'success')" data-i18n="adm.btn_save_settings">Guardar Configurações</button>
+            </div>
+          </div>
+          <!-- ClimateAlertThreshold editor (WEATHER_INTEGRATION_SPEC.md §5) —
+               every alert threshold is admin-configurable, never hardcoded -->
+          <div id="climateThresholdsAdm"><!-- Rendered via JS --></div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           MODULE: ADMINISTRATIVE OPERATIONS — Painel de Operações Administrativas
+           (ADMIN_OPERATIONS_DASHBOARD_SPEC.md §3 — one dashboard, 3 role-scoped
+           sections; sidebar items are filtered per role by js/app.js)
+           ==================================================================== -->
+      <div id="interface_admin_ops" class="role-interface-container" style="display: none;">
+
+        <!-- Visão Geral (admin_manager only — cross-unit summary, §3.1) -->
+        <div class="tab-pane" id="pane_ops_overview">
+          <div class="grid-cards-4" id="opsOverviewKpis"><!-- Rendered via JS --></div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ops.overview_title">Resumo Consolidado das 3 Unidades</span>
+              <div style="display:flex;gap:0.4rem;align-items:center;">
+                <span class="badge badge-neutral" data-i18n="ops.cross_unit_badge">Transversal (N3)</span>
+                <button class="btn btn-secondary btn-sm" onclick="exportOpsOverview()" data-i18n="ops.btn_export_excel">Exportar Excel</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="ops.th_unit">Unidade</th>
+                    <th data-i18n="ops.th_pending_reviews">Revisões Pendentes</th>
+                    <th data-i18n="ops.th_open_items">Itens em Aberto</th>
+                    <th data-i18n="ops.th_alerts">Alertas</th>
+                  </tr>
+                </thead>
+                <tbody id="opsOverviewTableBody"><!-- Rendered via JS --></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Finança & Conformidade (§4) — 8 sub-views rendered via JS -->
+        <div class="tab-pane" id="pane_ops_finance">
+          <div id="opsFinanceContent"><!-- Rendered via JS --></div>
+        </div>
+
+        <!-- Section: Apoio Operacional (§5) — 9 sub-views + team supervision queue -->
+        <div class="tab-pane" id="pane_ops_operations">
+          <div id="opsOperationsContent"><!-- Rendered via JS --></div>
+        </div>
+
+        <!-- Section: Serviços ao Colaborador & Instalações (§6) — 6 sub-views -->
+        <div class="tab-pane" id="pane_ops_hr">
+          <div id="opsHrContent"><!-- Rendered via JS --></div>
+        </div>
+
+        <!-- Relatórios Consolidados (admin_manager only, §8) -->
+        <div class="tab-pane" id="pane_ops_reports">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ops.reports_title">Relatórios Consolidados para a Fundação</span>
+              <span class="badge badge-warning" data-i18n="ops.reports_deadline_badge">Pedido de orçamento: prazo dia 20</span>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.5rem;">
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_period">Período do Relatório:</label>
+                <select class="form-control" id="opsReportPeriod">
+                  <option value="semanal" data-i18n="ops.period_weekly">Semanal</option>
+                  <option value="mensal" selected data-i18n="ops.period_monthly">Mensal</option>
+                  <option value="trimestral" data-i18n="ops.period_quarterly">Trimestral</option>
+                  <option value="semestral" data-i18n="ops.period_semiannual">Semestral</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_section_filter">Filtrar por Secção:</label>
+                <select class="form-control" id="opsReportSection">
+                  <option value="all" data-i18n="ops.section_all">Todas as Secções</option>
+                  <option value="finance" data-i18n="ops.section_finance">Finança &amp; Conformidade</option>
+                  <option value="operations" data-i18n="ops.section_operations">Apoio Operacional</option>
+                  <option value="hr_services" data-i18n="ops.section_hr">Serviços ao Colaborador &amp; Instalações</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_date_from">Data Início:</label>
+                <input type="date" class="form-control" id="opsReportFrom">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_date_to">Data Fim:</label>
+                <input type="date" class="form-control" id="opsReportTo">
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm" onclick="generateOpsReport()">
+                <span data-i18n="ops.btn_generate_report">Gerar Relatório Consolidado</span>
+                <span class="btn-arrow-circle">→</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="exportOpsReport('pdf')" data-i18n="ops.btn_export_pdf">Exportar PDF</button>
+              <button class="btn btn-secondary btn-sm" onclick="exportOpsReport('xlsx')" data-i18n="ops.btn_export_xlsx">Exportar XLSX</button>
+            </div>
+            <p style="font-size: 11px; color: var(--color-text-muted); margin-top: 0.6rem;" data-i18n="ops.reports_wellbeing_note">
+              Nota: dados de Bem-Estar da Equipa são sensíveis e excluídos por defeito de qualquer exportação — incluídos apenas de forma agregada e anonimizada.
+            </p>
+          </div>
+          <div id="opsReportResults" style="margin-top: 0.75rem;"><!-- Rendered via JS --></div>
+        </div>
+
+        <!-- Configurações do módulo -->
+        <div class="tab-pane" id="pane_ops_settings">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="ops.settings_title">Configurações do Departamento Administrativo</span>
+            </div>
+            <div class="form-grid-2" style="margin-top: 0.5rem;">
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_budget_deadline">Dia-limite para pedido de orçamento mensal:</label>
+                <input type="number" class="form-control" value="20" id="opsSettingBudgetDay">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="ops.lbl_report_recipient">Destinatário dos relatórios consolidados:</label>
+                <input type="text" class="form-control" value="Coordenador/a da Fazenda (N2)" readonly>
+              </div>
+            </div>
+            <div style="margin-top: 0.85rem;">
+              <button class="btn btn-primary btn-sm" onclick="showToast(t('ops.settings_saved'), 'success')" data-i18n="ops.btn_save_settings">Guardar Configurações</button>
+            </div>
+          </div>
+          <!-- ClimateAlertThreshold editor (WEATHER_INTEGRATION_SPEC.md §5) —
+               Administrative Operations → Settings -->
+          <div id="climateThresholdsOps"><!-- Rendered via JS --></div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           MODULE: OPERATIONAL DATA ENTRY (shared shell, 4 form variants — §7)
+           Reuses the Farm Technician offline-first pattern: local queue +
+           batch sync, role-specific form set swapped in on login.
+           ==================================================================== -->
+      <div id="interface_ops_entry" class="role-interface-container" style="display: none;">
+
+        <!-- Tab 1: Role-specific form set (rendered via JS per role) -->
+        <div class="tab-pane" id="pane_entry_form">
+          <div id="opsEntryFormContent"><!-- Rendered via JS per logged-in role --></div>
+        </div>
+
+        <!-- Tab 2: Sync Status (same engine as Farm Technician) -->
+        <div class="tab-pane" id="pane_entry_sync">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="entry.sync_title">Fila de Sincronização de Registos Operacionais</span>
+              <div style="display:flex;gap:0.4rem;align-items:center;">
+                <button class="btn btn-secondary btn-sm" onclick="exportOpsEntrySync()" data-i18n="ops.btn_export_excel">Exportar Excel</button>
+                <button class="btn btn-primary btn-sm" onclick="syncOpsEntriesNow()" data-i18n="entry.btn_sync_all">Sincronizar Todos Agora</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="ft.th_client_uuid">ID Cliente (UUID)</th>
+                    <th data-i18n="entry.th_form">Formulário</th>
+                    <th data-i18n="ft.th_timestamp">Data / Hora</th>
+                    <th data-i18n="ft.th_device_state">Estado no Dispositivo</th>
+                    <th data-i18n="ft.th_review_state">Revisão</th>
+                  </tr>
+                </thead>
+                <tbody id="opsEntrySyncTableBody"><!-- Rendered via JS --></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================
+       "Report Fire / Smoke" quick-action modal (WEATHER_INTEGRATION_SPEC.md
+       §2.4) — deliberately minimal: location, one-tap severity, optional
+       photo/note. Works fully offline via the same client-generated-ID sync
+       mechanism as every other field entry (BACKEND_SPEC.md §5).
+       ======================================================================== -->
+  <div class="auth-modal-backdrop" id="fireReportModalBackdrop">
+    <div class="auth-modal-card">
+      <button class="auth-modal-close" onclick="closeFireReportModal()">✕</button>
+
+      <div class="auth-header">
+        <h3 class="auth-title" data-i18n="fire.modal_title">Reportar Fogo / Fumo</h3>
+        <p class="auth-subtitle" data-i18n="fire.immediate_badge">Alerta imediato — nunca aguarda o ciclo agendado</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div class="form-group">
+          <label class="form-label" data-i18n="fire.lbl_location">Localização (talhão / área):</label>
+          <select class="form-control" id="fireFieldSelect"><!-- populated per role --></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" data-i18n="fire.lbl_severity">O que está a ver?</label>
+          <div class="touch-btn-grid">
+            <button type="button" class="touch-type-btn active" id="fireSevSmoke" onclick="selectFireSeverity('smoke_visible')" data-i18n="fire.sev_smoke">Fumo visível</button>
+            <button type="button" class="touch-type-btn" id="fireSevActive" onclick="selectFireSeverity('active_fire')" data-i18n="fire.sev_active">Fogo ativo visível</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" data-i18n="fire.lbl_photo">Fotografia (opcional):</label>
+          <div class="camera-preview-box" id="fireCameraBox" onclick="simulateFirePhotoCapture()">
+            <span style="font-size: 11px; font-weight: 600; color: var(--color-primary);" data-i18n="ft.camera_prompt">Tocar para Capturar Foto com Câmara</span>
+            <span id="firePhotoFileName" style="font-size: 10px; color: var(--color-text-muted);" data-i18n="ft.no_photo_attached">Nenhuma foto anexada</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" data-i18n="fire.lbl_note">Nota curta (opcional):</label>
+          <input type="text" class="form-control" id="fireNoteInput" data-i18n-placeholder="fire.note_placeholder" placeholder="Ex.: fumo denso a nordeste do talhão...">
+        </div>
+
+        <button class="btn btn-danger" onclick="submitFireReport()" style="margin-top: 0.35rem;">
+          <span data-i18n="fire.btn_submit">Enviar Alerta de Incêndio</span>
+          <span class="btn-arrow-circle">→</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Interactive Authentication & OTP Modal (FRONTEND_SPEC.md §2)
+       ======================================================================== -->
+  <div class="auth-modal-backdrop" id="authModalBackdrop">
+    <div class="auth-modal-card">
+      <button class="auth-modal-close" onclick="closeAuthModal()">✕</button>
+
+      <div class="auth-header">
+        <img src="images/tzu-chi-logo.png" alt="Tzu Chi Logo" class="auth-header-logo">
+        <h3 class="auth-title" id="authStepTitle" data-i18n="auth.step1_title">Autenticação do Colaborador</h3>
+        <p class="auth-subtitle" id="authStepSubtitle" data-i18n="auth.step1_sub">Introduza o seu Número de Funcionário e PIN</p>
+      </div>
+
+      <!-- Step 1: Employee # + PIN -->
+      <div id="authStep1">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="form-group">
+            <label class="form-label" data-i18n="auth.lbl_emp_number">Número de Funcionário (ex: TZ11244043):</label>
+            <input type="text" class="form-control" id="authEmpNumber" value="TZ11244045" placeholder="TZ11244043" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="auth.lbl_pin">PIN Numérico:</label>
+            <input type="password" maxlength="6" class="form-control" id="authPin" value="5678" placeholder="••••" required>
+            <small style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.2rem;" data-i18n="auth.forgot_pin_help">Esqueceu o seu PIN? Contacte o administrador.</small>
+          </div>
+          <button class="btn btn-primary" onclick="handleAuthSubmitStep1()" style="margin-top: 0.35rem;">
+            <span data-i18n="auth.btn_request_otp">Solicitar Código SMS OTP</span>
+            <span class="btn-arrow-circle">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: 6-digit SMS OTP -->
+      <div id="authStep2" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: center;">
+          <p style="font-size: 12px; color: var(--color-text);">
+            <span data-i18n="auth.code_sent_to">Código enviado para o número</span>
+            <strong id="maskedPhoneDisplay">+258 84 *** 8901</strong>
+          </p>
+
+          <div class="otp-digit-inputs">
+            <input type="text" maxlength="1" class="otp-box" id="otp1" onkeyup="handleOtpInput(1, event)">
+            <input type="text" maxlength="1" class="otp-box" id="otp2" onkeyup="handleOtpInput(2, event)">
+            <input type="text" maxlength="1" class="otp-box" id="otp3" onkeyup="handleOtpInput(3, event)">
+            <input type="text" maxlength="1" class="otp-box" id="otp4" onkeyup="handleOtpInput(4, event)">
+            <input type="text" maxlength="1" class="otp-box" id="otp5" onkeyup="handleOtpInput(5, event)">
+            <input type="text" maxlength="1" class="otp-box" id="otp6" onkeyup="handleOtpInput(6, event)">
+          </div>
+
+          <div style="font-size: 11px; color: var(--color-text-muted);">
+            <span data-i18n="auth.resend_in">Reenviar código em</span> <span id="otpCountdown" style="font-weight: 700; color: var(--color-accent);">30</span>s
+          </div>
+
+          <button class="btn btn-primary" onclick="handleAuthSubmitStep2()" style="margin-top: 0.35rem;">
+            <span data-i18n="auth.btn_verify_enter">Verificar e Entrar</span>
+            <span class="btn-arrow-circle">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Activation Variant (Set Permanent PIN for pending accounts) -->
+      <div id="authStep3" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <p style="font-size: 12px; color: var(--color-text-muted);" data-i18n="auth.activation_help">Primeiro acesso: Defina o seu PIN permanente de 4 a 6 dígitos numéricos.</p>
+          <div class="form-group">
+            <label class="form-label" data-i18n="auth.lbl_new_pin">Novo PIN:</label>
+            <input type="password" maxlength="6" class="form-control" id="newPermanentPin" placeholder="••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="auth.lbl_confirm_pin">Confirmar Novo PIN:</label>
+            <input type="password" maxlength="6" class="form-control" id="confirmPermanentPin" placeholder="••••">
+          </div>
+          <button class="btn btn-primary" onclick="handleAuthSubmitStep3()" style="margin-top: 0.35rem;">
+            <span data-i18n="auth.btn_activate_account">Ativar Conta & Entrar</span>
+            <span class="btn-arrow-circle">→</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       AI Copilot Drawer
+       ======================================================================== -->
+  <div class="copilot-overlay" id="copilotOverlay" onclick="closeCopilot()"></div>
+  <div class="copilot-drawer" id="copilotDrawer">
+    <div class="copilot-header">
+      <div class="copilot-header-titles">
+        <h3 data-i18n="copilot.title">Assistente Mecuzi AI</h3>
+        <span style="font-size: 10px; opacity: 0.8;" data-i18n="copilot.sop_tag">SOP PON-AGR-MEC-V2.0</span>
+      </div>
+      <button class="copilot-close" onclick="closeCopilot()">✕</button>
+    </div>
+
+    <div class="copilot-messages" id="copilotMessages">
+      <div class="copilot-msg assistant">
+        <div class="msg-bubble" data-i18n="copilot.welcome">
+          Olá! Sou o assistente operacional de Mecuzi. Em que posso apoiar na gestão de talhões, regras de escala 14/2, furos ou relatórios?
+        </div>
+      </div>
+    </div>
+
+    <div class="copilot-chips">
+      <button class="chip-btn" onclick="sendCopilotPrompt('Qual é o procedimento para o Furo 2 com consumo >120%?')" data-i18n="copilot.chip_water">Furo >120%</button>
+      <button class="chip-btn" onclick="sendCopilotPrompt('Como funciona a sincronização de relatórios offline?')" data-i18n="copilot.chip_sync">Sincronização Offline</button>
+      <button class="chip-btn" onclick="sendCopilotPrompt('Como resetar o PIN de um técnico?')" data-i18n="copilot.chip_pin">Reset de PIN</button>
+    </div>
+
+    <div class="copilot-input-area">
+      <input type="text" class="form-control" id="copilotInput" data-i18n-placeholder="copilot.input_placeholder" placeholder="Pergunte ao assistente..." onkeypress="if(event.key === 'Enter') handleCopilotSend()">
+      <button class="btn btn-primary btn-sm" onclick="handleCopilotSend()" data-i18n="copilot.btn_send">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/data.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
