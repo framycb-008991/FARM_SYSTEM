@@ -200,13 +200,13 @@ const I18N_DICTIONARY = {
 
     // 10. Authentication Modal
     'auth.step1_title': 'Autenticação do Colaborador',
-    'auth.step1_sub': 'Introduza o seu Número de Funcionário e PIN',
+    'auth.step1_sub': 'Introduza o seu Número de Funcionário e palavra-passe',
     'auth.lbl_emp_number': 'Número de Funcionário (ex: TZ11244043):',
-    'auth.lbl_pin': 'PIN Numérico:',
-    'auth.forgot_pin_help': 'Esqueceu o seu PIN? Contacte o administrador.',
-    'auth.btn_request_otp': 'Solicitar Código SMS OTP',
-    'auth.step2_title': 'Verificação de Segurança (SMS OTP)',
-    'auth.step2_sub': 'Introduza o código de 6 dígitos enviado por SMS',
+    'auth.lbl_pin': 'Palavra-passe:',
+    'auth.forgot_pin_help': 'Esqueceu a palavra-passe? Contacte o administrador.',
+    'auth.btn_request_otp': 'Entrar com sessão segura',
+    'auth.step2_title': 'Verificação OTP desativada',
+    'auth.step2_sub': 'Este demo usa apenas autenticação de palavra-passe no servidor.',
     'auth.code_sent_to': 'Código enviado para o número',
     'auth.resend_in': 'Reenviar código em',
     'auth.btn_verify_enter': 'Verificar e Entrar',
@@ -216,7 +216,7 @@ const I18N_DICTIONARY = {
     'auth.lbl_new_pin': 'Novo PIN:',
     'auth.lbl_confirm_pin': 'Confirmar Novo PIN:',
     'auth.btn_activate_account': 'Ativar Conta & Entrar',
-    'auth.dev_otp_toast': 'SMS simulado — código OTP:',
+    'auth.dev_otp_toast': 'OTP desativado neste demo.',
 
     // 10b. Auth & Access-Control Errors (translatable keys, BACKEND_SPEC.md §9)
     'errors.employee_not_found': 'Número de funcionário não encontrado.',
@@ -227,6 +227,9 @@ const I18N_DICTIONARY = {
     'errors.report_not_found': 'Registo não encontrado.',
     'errors.pin_too_short': 'O PIN deve ter pelo menos 4 dígitos.',
     'errors.pin_mismatch': 'Os PINs não coincidem.',
+    'errors.otp_disabled': 'OTP desativado: a fonte Excel não contém números de telefone.',
+    'errors.password_reset_disabled': 'Definição de palavra-passe no cliente está desativada neste demo.',
+    'errors.too_many_attempts': 'Demasiadas tentativas. Aguarde 15 minutos e tente novamente.',
 
     // 11. Generic Status Values
     'status.on_track': 'Em Conformidade',
@@ -922,13 +925,13 @@ const I18N_DICTIONARY = {
 
     // 10. Authentication Modal
     'auth.step1_title': 'Employee Authentication',
-    'auth.step1_sub': 'Enter your Employee Number and PIN',
+    'auth.step1_sub': 'Enter your Employee Number and password',
     'auth.lbl_emp_number': 'Employee Number (e.g. TZ11244043):',
-    'auth.lbl_pin': 'Numeric PIN:',
-    'auth.forgot_pin_help': 'Forgot your PIN? Contact your administrator.',
-    'auth.btn_request_otp': 'Request SMS OTP Code',
-    'auth.step2_title': 'Security Verification (SMS OTP)',
-    'auth.step2_sub': 'Enter the 6-digit code sent via SMS',
+    'auth.lbl_pin': 'Password:',
+    'auth.forgot_pin_help': 'Forgot your password? Contact your administrator.',
+    'auth.btn_request_otp': 'Sign in with secure session',
+    'auth.step2_title': 'OTP Verification Disabled',
+    'auth.step2_sub': 'This demo uses server-side password authentication only.',
     'auth.code_sent_to': 'Code sent to number',
     'auth.resend_in': 'Resend code in',
     'auth.btn_verify_enter': 'Verify & Sign In',
@@ -938,7 +941,7 @@ const I18N_DICTIONARY = {
     'auth.lbl_new_pin': 'New PIN:',
     'auth.lbl_confirm_pin': 'Confirm New PIN:',
     'auth.btn_activate_account': 'Activate Account & Sign In',
-    'auth.dev_otp_toast': 'Simulated SMS — OTP code:',
+    'auth.dev_otp_toast': 'OTP is disabled for this demo.',
 
     // 10b. Auth & Access-Control Errors (translatable keys, BACKEND_SPEC.md §9)
     'errors.employee_not_found': 'Employee number not found.',
@@ -947,8 +950,11 @@ const I18N_DICTIONARY = {
     'errors.session_expired': 'Session expired or invalid. Please sign in again.',
     'errors.forbidden': 'Access denied (403): your account role is not permitted to perform this action.',
     'errors.report_not_found': 'Report not found.',
-    'errors.pin_too_short': 'PIN must be at least 4 digits.',
-    'errors.pin_mismatch': 'PINs do not match.',
+    'errors.pin_too_short': 'The PIN must be at least 4 digits.',
+    'errors.pin_mismatch': 'The PINs do not match.',
+    'errors.otp_disabled': 'OTP is disabled: the Excel source has no phone numbers.',
+    'errors.password_reset_disabled': 'Client-side password setup is disabled for this demo.',
+    'errors.too_many_attempts': 'Too many attempts. Wait 15 minutes and try again.',
 
     // 11. Generic Status Values
     'status.on_track': 'On-Track',
@@ -1644,13 +1650,13 @@ const I18N_DICTIONARY = {
 
     // 10. Authentication Modal
     'auth.step1_title': '員工身分驗證',
-    'auth.step1_sub': '請輸入您的員工工號與 PIN 密碼',
+    'auth.step1_sub': '請輸入員工工號與密碼',
     'auth.lbl_emp_number': '員工工號 (例：TZ11244043)：',
-    'auth.lbl_pin': '數字 PIN 碼：',
-    'auth.forgot_pin_help': '忘記 PIN 碼？請洽詢系統管理員。',
-    'auth.btn_request_otp': '發送簡訊驗證碼 (SMS OTP)',
-    'auth.step2_title': '雙重安全驗證 (SMS OTP)',
-    'auth.step2_sub': '請輸入手機接收到的 6 位數驗證碼',
+    'auth.lbl_pin': '密碼：',
+    'auth.forgot_pin_help': '忘記密碼？請洽詢系統管理員。',
+    'auth.btn_request_otp': '以安全連線登入',
+    'auth.step2_title': 'OTP 驗證已停用',
+    'auth.step2_sub': '此展示僅使用伺服器端密碼驗證。',
     'auth.code_sent_to': '驗證碼已發送至號碼',
     'auth.resend_in': '重新發送倒數',
     'auth.btn_verify_enter': '驗證並登入系統',
@@ -1660,7 +1666,7 @@ const I18N_DICTIONARY = {
     'auth.lbl_new_pin': '新 PIN 碼：',
     'auth.lbl_confirm_pin': '確認新 PIN 碼：',
     'auth.btn_activate_account': '啟用帳號並登入',
-    'auth.dev_otp_toast': '模擬簡訊 — OTP 驗證碼：',
+    'auth.dev_otp_toast': '此展示已停用 OTP。',
 
     // 10b. Auth & Access-Control Errors (translatable keys, BACKEND_SPEC.md §9)
     'errors.employee_not_found': '找不到此員工工號。',
@@ -1669,8 +1675,11 @@ const I18N_DICTIONARY = {
     'errors.session_expired': '登入連線已過期或無效，請重新登入。',
     'errors.forbidden': '拒絕存取 (403)：您的帳號角色無權執行此操作。',
     'errors.report_not_found': '找不到該筆日誌。',
-    'errors.pin_too_short': 'PIN 碼至少需要 4 位數字。',
+    'errors.pin_too_short': 'PIN 碼至少需要 4 位數。',
     'errors.pin_mismatch': '兩次輸入的 PIN 碼不一致。',
+    'errors.otp_disabled': 'OTP 已停用：Excel 來源不含電話號碼。',
+    'errors.password_reset_disabled': '此展示已停用前端密碼設定。',
+    'errors.too_many_attempts': '嘗試次數過多，請等待 15 分鐘後再試。',
 
     // 11. Generic Status Values
     'status.on_track': '營運正常',

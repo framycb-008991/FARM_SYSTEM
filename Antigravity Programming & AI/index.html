@@ -53,8 +53,8 @@
           <span class="role-label-text" id="currentRoleLabel">—</span>
         </div>
 
-        <!-- Login / Logout (Employee # + PIN + SMS OTP) -->
-        <button class="btn-auth-demo" id="openAuthModalBtn" title="Autenticação com Nº Funcionário + PIN + OTP">
+        <!-- Login / Logout (Employee # + server-side workbook password) -->
+        <button class="btn-auth-demo" id="openAuthModalBtn" title="Autenticação segura no servidor">
           <span id="authBtnLabel" data-i18n="app.btn_login">Entrar</span>
         </button>
 
@@ -976,20 +976,20 @@
         <p class="auth-subtitle" id="authStepSubtitle" data-i18n="auth.step1_sub">Introduza o seu Número de Funcionário e PIN</p>
       </div>
 
-      <!-- Step 1: Employee # + PIN -->
+      <!-- Step 1: Employee # + password. The password is verified only by the server. -->
       <div id="authStep1">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="form-group">
             <label class="form-label" data-i18n="auth.lbl_emp_number">Número de Funcionário (ex: TZ11244043):</label>
-            <input type="text" class="form-control" id="authEmpNumber" value="TZ11244045" placeholder="TZ11244043" required>
+            <input type="text" class="form-control" id="authEmpNumber" autocomplete="username" placeholder="TZ11244043" required>
           </div>
           <div class="form-group">
-            <label class="form-label" data-i18n="auth.lbl_pin">PIN Numérico:</label>
-            <input type="password" maxlength="6" class="form-control" id="authPin" value="5678" placeholder="••••" required>
+            <label class="form-label" data-i18n="auth.lbl_pin">Palavra-passe:</label>
+            <input type="password" maxlength="64" class="form-control" id="authPin" autocomplete="current-password" placeholder="••••" required>
             <small style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.2rem;" data-i18n="auth.forgot_pin_help">Esqueceu o seu PIN? Contacte o administrador.</small>
           </div>
           <button class="btn btn-primary" onclick="handleAuthSubmitStep1()" style="margin-top: 0.35rem;">
-            <span data-i18n="auth.btn_request_otp">Solicitar Código SMS OTP</span>
+            <span data-i18n="auth.btn_request_otp">Entrar com sessão segura</span>
             <span class="btn-arrow-circle">→</span>
           </button>
         </div>

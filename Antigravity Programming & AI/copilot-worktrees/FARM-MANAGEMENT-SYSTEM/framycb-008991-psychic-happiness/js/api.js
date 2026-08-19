@@ -128,7 +128,7 @@
   /* ----------------------------------------------------------------------
      JWT (HS256) helpers — real HMAC-SHA256 via Web Crypto (browser + Node)
      ---------------------------------------------------------------------- */
-  const JWT_SECRET = 'mecuzi-demo-hmac-secret-do-not-use-in-production';
+  const JWT_SECRET = '';
   const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // BACKEND_SPEC.md §2.3: short-lived access token
 
   function b64urlEncodeString(str) {

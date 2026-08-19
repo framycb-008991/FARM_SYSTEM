@@ -38,22 +38,19 @@ function check(label, condition) {
   else { failed++; console.log(`  FAIL  ${label}`); }
 }
 
-async function loginAs(employeeNumber, pin) {
-  const l = await MockAPI.login(employeeNumber, pin);
-  if (!l.ok) return null;
-  const v = await MockAPI.verifyOtp(l.data.challengeId, l.data.devOtp);
-  return v.ok ? v.data.accessToken : null;
+function claims(employeeNumber, name, role) {
+  return { employeeNumber, sub: employeeNumber, name, role, roleKey: `roles.${role}`, status: 'active' };
 }
 
 async function main() {
-  const tokTech = await loginAs('TZ11244045', '5678');   // farm_technician (FLD-01, FLD-02)
-  const tokPM = await loginAs('TZ12000010', '1010');     // production_manager
-  const tokTM = await loginAs('TZ10000001', '1111');     // top_management
-  const tokAdmin = await loginAs('TZ10000099', '1099');  // administrator
-  const tokAdminMgr = await loginAs('TZ13000001', '2001'); // admin_manager
-  const tokOpsLead = await loginAs('TZ13000003', '2003');  // operations_support_lead
-  const tokDriver = await loginAs('TZ13000005', '2005');   // driver
-  const tokCook = await loginAs('TZ13000007', '2007');     // cook
+  const tokTech = claims('TZ11244045', 'Farm Technician', 'farm_technician');
+  const tokPM = claims('TZ12000010', 'Production Manager', 'production_manager');
+  const tokTM = claims('TZ10000001', 'Top Management', 'top_management');
+  const tokAdmin = claims('TZ10000099', 'Administrator', 'administrator');
+  const tokAdminMgr = claims('TZ13000001', 'Administrative Manager', 'admin_manager');
+  const tokOpsLead = claims('TZ13000003', 'Operations Support Lead', 'operations_support_lead');
+  const tokDriver = claims('TZ13000005', 'Driver', 'driver');
+  const tokCook = claims('TZ13000007', 'Cook', 'cook');
 
   console.log('\n=== 1. Data model (§3/§3a) ===');
   check('WeatherReading, FireHotspot, FireDangerReading, ClimateAlert, ClimateAlertThreshold collections exist',

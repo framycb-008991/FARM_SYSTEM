@@ -1,0 +1,8 @@
+# Local generated demo secrets
+Antigravity Programming & AI/.secrets/
+Antigravity Programming & AI/demo-accounts*.json
+Antigravity Programming & AI/demo-accounts*.b64
+
+# Dependencies / build output
+Antigravity Programming & AI/node_modules/
+Antigravity Programming & AI/npm-debug.log*

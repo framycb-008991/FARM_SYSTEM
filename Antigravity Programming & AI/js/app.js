@@ -10,10 +10,10 @@ const AppState = {
   currentTab: null,
   isOffline: false,
   attachedPhoto: null,
-  accessToken: null,      // JWT issued by MockAPI after login + OTP (role claim inside)
-  claims: null,           // decoded+verified token claims { sub, name, role, iat, exp }
-  authChallengeId: null,  // login_challenge_id between step 1 and step 2 (BACKEND_SPEC.md §2.3)
-  pendingToken: null,     // token held while a pending account sets its permanent PIN
+  accessToken: null,      // public server-derived claims object; cookie stays HttpOnly
+  claims: null,           // public session claims { sub, employeeNumber, name, role }
+  authChallengeId: null,  // legacy no-op: OTP is disabled for workbook-only demo auth
+  pendingToken: null,     // legacy no-op: permanent password changes are out of scope
   pendingEmployee: null
 };
 
@@ -364,21 +364,23 @@ function guardRoleInterface(requestedRole) {
 }
 
 async function restoreSession() {
-  const token = sessionStorage.getItem('mecuzi_access_token');
-  if (token) {
-    const auth = await MockAPI.verifyAccessToken(token);
-    if (auth.ok) {
-      AppState.accessToken = token;
-      AppState.claims = auth.claims;
-      AppState.currentUser = MECUZI_DATA.employees.find(e => e.employeeNumber === auth.claims.sub) || null;
-      document.body.classList.add('authenticated');
-      updateAccountUi();
-      routeToRoleDashboard(auth.claims.role);
-      return;
-    }
-    sessionStorage.removeItem('mecuzi_access_token');
+  const auth = await MockAPI.verifyAccessToken(AppState.accessToken);
+  if (auth.ok) {
+    AppState.accessToken = auth.claims;
+    AppState.claims = auth.claims;
+    AppState.currentUser = MECUZI_DATA.employees.find(e => e.employeeNumber === auth.claims.sub) || {
+      employeeNumber: auth.claims.sub,
+      name: auth.claims.name,
+      role: auth.claims.role,
+      roleKey: auth.claims.roleKey,
+      status: auth.claims.status || 'active'
+    };
+    document.body.classList.add('authenticated');
+    updateAccountUi();
+    routeToRoleDashboard(auth.claims.role);
+    return;
   }
-  // No valid session → the app stays locked behind the login/OTP modal
+  // No valid server session → the app stays locked behind the login modal.
   openAuthModal();
 }
 
@@ -393,11 +395,11 @@ function updateAccountUi() {
   }
 }
 
-function logout() {
+async function logout() {
+  try { await MockAPI.logout(); } catch (e) { /* offline/local failure: clear UI anyway */ }
   AppState.accessToken = null;
   AppState.claims = null;
   AppState.currentUser = null;
-  sessionStorage.removeItem('mecuzi_access_token');
   document.body.classList.remove('authenticated');
   updateAccountUi();
   openAuthModal();
@@ -972,7 +974,7 @@ async function resetEmployeePin(empNumber) {
     showToast(t(res.error), 'error');
     return;
   }
-  showToast(`${t('adm.btn_reset_pin')}: ${res.data.name} (${empNumber}). PIN: 0000.`, 'success');
+  showToast(`${t('adm.btn_reset_pin')}: ${res.data.name} (${empNumber}).`, 'success');
   renderAdmEmployeesTable();
   renderAdmAuditLogTable();
 }
@@ -996,7 +998,6 @@ async function showProvisionEmployeeModal() {
     name: name,
     phone: phone || '+258 84 000 0000',
     role: role,
-    tempPin: '0000',
     point: 'Point_A',
     assignedFields: ['FLD-01']
   });
@@ -1061,8 +1062,9 @@ function filterAuditLogs() {
 }
 
 /* ==========================================================================
-   Authentication & OTP Flow (BACKEND_SPEC.md §2.3, ACCESS_CONTROL_FIX.md §2.2)
-   Login → OTP → JWT with role claim → automatic dashboard. No role picker.
+   Authentication Flow (server-side workbook password auth)
+   Employee number + password → HttpOnly signed cookie → automatic dashboard.
+   OTP is disabled because the workbook source has no phone numbers.
    ========================================================================== */
 function openAuthModal() {
   const modal = document.getElementById('authModalBackdrop');
@@ -1098,25 +1100,18 @@ function showAuthStep(stepNumber) {
   }
 }
 
-// Step 1 — POST /auth/login: employee number + PIN -> OTP challenge
+// Step 1 — POST /api/auth/login: employee number + workbook password -> server session
 async function handleAuthSubmitStep1() {
   const empNum = document.getElementById('authEmpNumber')?.value.trim();
-  const pin = document.getElementById('authPin')?.value.trim();
+  const password = document.getElementById('authPin')?.value || '';
 
-  const res = await MockAPI.login(empNum, pin);
+  const res = await MockAPI.login(empNum, password);
   if (!res.ok) {
     showToast(t(res.error), 'error');
     return;
   }
 
-  AppState.authChallengeId = res.data.challengeId;
-  const phoneDisplay = document.getElementById('maskedPhoneDisplay');
-  if (phoneDisplay) phoneDisplay.textContent = res.data.maskedPhone;
-
-  // Simulated SMS delivery from the mock provider (Twilio Verify stand-in)
-  showToast(`${t('auth.dev_otp_toast')} ${res.data.devOtp}`, 'navy');
-  showAuthStep(2);
-  startOtpTimer();
+  establishSession(res.data.session, res.data.employee);
 }
 
 function handleOtpInput(digitIndex, event) {
@@ -1143,69 +1138,33 @@ function startOtpTimer() {
   }, 1000);
 }
 
-// Step 2 — POST /auth/verify-otp: challenge + code -> JWT (role claim inside)
+// Legacy OTP path: disabled for workbook-only auth.
 async function handleAuthSubmitStep2() {
-  const code = [1, 2, 3, 4, 5, 6]
-    .map(i => document.getElementById(`otp${i}`)?.value || '')
-    .join('');
-
-  const res = await MockAPI.verifyOtp(AppState.authChallengeId, code);
-  if (!res.ok) {
-    showToast(t(res.error), 'error');
-    return;
-  }
-
-  if (res.data.mustSetPin) {
-    // First-time activation: hold the token until the permanent PIN is set
-    AppState.pendingToken = res.data.accessToken;
-    AppState.pendingEmployee = res.data.employee;
-    showAuthStep(3);
-  } else {
-    establishSession(res.data.accessToken, res.data.employee);
-  }
+  showToast(t('errors.otp_disabled'), 'error');
 }
 
-// Step 3 — first-time activation: set permanent PIN, then enter the dashboard
+// Password activation/reset is server-side/out of scope for this demo.
 function handleAuthSubmitStep3() {
-  const p1 = document.getElementById('newPermanentPin')?.value;
-  const p2 = document.getElementById('confirmPermanentPin')?.value;
-
-  if (!p1 || p1.length < 4) {
-    showToast(t('errors.pin_too_short'), 'error');
-    return;
-  }
-
-  if (p1 !== p2) {
-    showToast(t('errors.pin_mismatch'), 'error');
-    return;
-  }
-
-  const emp = AppState.pendingEmployee;
-  if (emp) {
-    const record = MECUZI_DATA.employees.find(e => e.employeeNumber === emp.employeeNumber);
-    if (record) {
-      record.pin = p1;
-      record.status = 'active';
-    }
-    showToast(t('auth.btn_activate_account'), 'success');
-    establishSession(AppState.pendingToken, emp);
-    AppState.pendingToken = null;
-    AppState.pendingEmployee = null;
-  }
+  showToast(t('errors.password_reset_disabled'), 'error');
 }
 
-// Session established: store the JWT, then route automatically to the role's
-// own dashboard read from the verified token — never from user choice (§2.2, §3.5).
-async function establishSession(accessToken, employee) {
-  const auth = await MockAPI.verifyAccessToken(accessToken);
+// Session established: retain only public server-derived claims in memory, then
+// route automatically to the role returned by /api/auth/session.
+async function establishSession(sessionClaims, employee) {
+  const auth = await MockAPI.verifyAccessToken(sessionClaims);
   if (!auth.ok) {
     showToast(t(auth.error), 'error');
     return;
   }
-  AppState.accessToken = accessToken;
+  AppState.accessToken = auth.claims;
   AppState.claims = auth.claims;
-  AppState.currentUser = MECUZI_DATA.employees.find(e => e.employeeNumber === auth.claims.sub) || employee;
-  sessionStorage.setItem('mecuzi_access_token', accessToken);
+  AppState.currentUser = MECUZI_DATA.employees.find(e => e.employeeNumber === auth.claims.sub) || employee || {
+    employeeNumber: auth.claims.sub,
+    name: auth.claims.name,
+    role: auth.claims.role,
+    roleKey: auth.claims.roleKey,
+    status: auth.claims.status || 'active'
+  };
 
   document.body.classList.add('authenticated');
   updateAccountUi();

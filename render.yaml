@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: farm-system-render-demo
+    runtime: node
+    rootDir: Antigravity Programming & AI
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"

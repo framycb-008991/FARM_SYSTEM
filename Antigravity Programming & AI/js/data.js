@@ -16,7 +16,7 @@ const MECUZI_DATA = {
       phone: '+258 84 100 0001',
       role: 'top_management',
       roleKey: 'roles.top_management',
-      pin: '1111',
+
       status: 'active',
       point: 'Central',
       rotation: '14/2 Cycle A',
@@ -30,7 +30,7 @@ const MECUZI_DATA = {
       phone: '+258 82 100 0010',
       role: 'production_manager',
       roleKey: 'roles.production_manager',
-      pin: '1010',
+
       status: 'active',
       point: 'Central',
       rotation: '14/2 Cycle A',
@@ -44,7 +44,7 @@ const MECUZI_DATA = {
       phone: '+258 84 100 0099',
       role: 'administrator',
       roleKey: 'roles.administrator',
-      pin: '1099',
+
       status: 'active',
       point: 'Central',
       rotation: '14/2 Cycle A',
@@ -56,42 +56,42 @@ const MECUZI_DATA = {
     {
       id: 'EMP-T11', employeeNumber: 'TZ13000001', name: 'Conta Teste — Gestor Administrativo',
       phone: '+258 84 300 0001', role: 'admin_manager', roleKey: 'roles.admin_manager',
-      pin: '2001', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T12', employeeNumber: 'TZ13000002', name: 'Conta Teste — Finança & Conformidade',
       phone: '+258 82 300 0002', role: 'finance_compliance_lead', roleKey: 'roles.finance_compliance_lead',
-      pin: '2002', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T13', employeeNumber: 'TZ13000003', name: 'Conta Teste — Apoio Operacional',
       phone: '+258 84 300 0003', role: 'operations_support_lead', roleKey: 'roles.operations_support_lead',
-      pin: '2003', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T14', employeeNumber: 'TZ13000004', name: 'Conta Teste — Serviços & Instalações',
       phone: '+258 82 300 0004', role: 'hr_facility_lead', roleKey: 'roles.hr_facility_lead',
-      pin: '2004', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T15', employeeNumber: 'TZ13000005', name: 'Conta Teste — Motorista',
       phone: '+258 84 300 0005', role: 'driver', roleKey: 'roles.driver',
-      pin: '2005', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T16', employeeNumber: 'TZ13000006', name: 'Conta Teste — Assistente de Armazém',
       phone: '+258 82 300 0006', role: 'warehouse_assistant', roleKey: 'roles.warehouse_assistant',
-      pin: '2006', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T17', employeeNumber: 'TZ13000007', name: 'Conta Teste — Cozinheiro/a',
       phone: '+258 84 300 0007', role: 'cook', roleKey: 'roles.cook',
-      pin: '2007', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-T18', employeeNumber: 'TZ13000008', name: 'Conta Teste — Auxiliar de Limpeza',
       phone: '+258 82 300 0008', role: 'cleaning_assistant', roleKey: 'roles.cleaning_assistant',
-      pin: '2008', status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
+      status: 'active', point: 'Central', rotation: '14/2 Cycle A', assignedFields: [], createdAt: '01/01/2026'
     },
     {
       id: 'EMP-001',
@@ -100,7 +100,7 @@ const MECUZI_DATA = {
       phone: '+258 84 123 4567',
       role: 'top_management',
       roleKey: 'roles.top_management',
-      pin: '1234',
+
       status: 'active',
       point: 'Central',
       rotation: '14/2 Cycle A',
@@ -114,7 +114,7 @@ const MECUZI_DATA = {
       phone: '+258 82 234 5678',
       role: 'production_manager',
       roleKey: 'roles.production_manager',
-      pin: '2345',
+
       status: 'active',
       point: 'Central',
       rotation: '14/2 Cycle A',
@@ -128,7 +128,7 @@ const MECUZI_DATA = {
       phone: '+258 84 345 6789',
       role: 'production_manager',
       roleKey: 'roles.production_manager',
-      pin: '3456',
+
       status: 'active',
       point: 'Point_B',
       rotation: '14/2 Cycle A',
@@ -142,7 +142,7 @@ const MECUZI_DATA = {
       phone: '+258 82 456 7890',
       role: 'administrator',
       roleKey: 'roles.administrator',
-      pin: '4567',
+
       status: 'active',
       point: 'Point_B',
       rotation: '14/2 Cycle A',
@@ -156,7 +156,7 @@ const MECUZI_DATA = {
       phone: '+258 84 567 8901',
       role: 'farm_technician',
       roleKey: 'roles.farm_technician',
-      pin: '5678',
+
       status: 'active',
       point: 'Point_A',
       rotation: '14/2 Cycle A',
@@ -170,7 +170,7 @@ const MECUZI_DATA = {
       phone: '+258 82 678 9012',
       role: 'farm_technician',
       roleKey: 'roles.farm_technician',
-      pin: '6789',
+
       status: 'active',
       point: 'Point_B',
       rotation: '14/2 Cycle A',
@@ -184,7 +184,7 @@ const MECUZI_DATA = {
       phone: '+258 84 789 0123',
       role: 'farm_technician',
       roleKey: 'roles.farm_technician',
-      pin: '7890',
+
       status: 'pending',
       point: 'Point_C',
       rotation: '14/2 Cycle B',

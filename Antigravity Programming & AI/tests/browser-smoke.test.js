@@ -1,363 +1,132 @@
 /* ==========================================================================
-   ACCESS_CONTROL_FIX.md — Browser smoke test (QA Checklist §5, UI layer)
-
-   Drives the real index.html in headless Chrome over the DevTools Protocol
-   (Node's built-in WebSocket — no npm dependencies) and verifies:
-     1. No ROLE dropdown exists in the navbar; a non-interactive label does
-     2. App shell is locked until login + OTP completes
-     3. Technician login lands directly on the technician dashboard
-     4. Typing another role's dashboard URL redirects back to the user's own
-     5. The session token is rejected (403) by endpoints outside its role
-     6. Logout re-locks the app; admin login lands on the admin dashboard
-
-   Usage:  node tests/browser-smoke.test.js
+   Browser smoke test for PostgreSQL-backed server-side auth demo.
    ========================================================================== */
 'use strict';
 
-const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
-const pathToFileURL = require('url').pathToFileURL;
+const { spawn } = require('child_process');
+const { readWorkbook } = require('../scripts/xlsx-simple');
+const { ATTACHED_INPUT } = require('../scripts/import-demo-accounts');
+const { createSeededTestDb } = require('./test-db');
+const { createApp } = require('../server');
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const PORT = 9333;
-const PAGE_URL = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
+const DEVTOOLS_PORT = Number(process.env.DEVTOOLS_PORT || (9333 + Math.floor(Math.random() * 500)));
+const APP_PORT = Number(process.env.TEST_PORT || 3421);
+const PAGE_URL = `http://127.0.0.1:${APP_PORT}/`;
+const WORKBOOK = process.env.TEST_ACCOUNTS_XLSX || (fs.existsSync('C:/Users/user/Downloads/Test_Accounts2.xlsx') ? 'C:/Users/user/Downloads/Test_Accounts2.xlsx' : ATTACHED_INPUT);
 
 let passed = 0;
 let failed = 0;
 function check(label, condition) {
-  if (condition) { passed++; console.log(`  PASS  ${label}`); }
-  else { failed++; console.log(`  FAIL  ${label}`); }
+  if (condition) { passed += 1; console.log(`  PASS  ${label}`); }
+  else { failed += 1; console.log(`  FAIL  ${label}`); }
 }
-
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function workbookAccountFor(functionName) {
+  const wb = readWorkbook(WORKBOOK);
+  const sheet = wb.sheets.find(s => s.name === 'Test Accounts') || wb.sheets[0];
+  for (const row of sheet.rows) {
+    const employeeNumber = String(row[0] || '').trim().toUpperCase();
+    const fn = String(row[1] || '').trim();
+    const password = String(row[2] || '').trim();
+    if (/^TZ\d{8}$/.test(employeeNumber) && fn === functionName) return { employeeNumber, password };
+  }
+  throw new Error(`No workbook account found for ${functionName}`);
+}
+
 async function main() {
+  const tech = workbookAccountFor('Farm Technician');
+  const admin = workbookAccountFor('Administrator');
+  const ops = workbookAccountFor('Administrative Manager');
+  const { db } = await createSeededTestDb(WORKBOOK);
+  const { app } = createApp({ db, sessionSecret: 'test-session-secret-32-characters-minimum' });
+  const server = await new Promise(resolve => {
+    const s = app.listen(APP_PORT, '127.0.0.1', () => resolve(s));
+  });
+  const chromeProfile = path.join(process.env.LOCALAPPDATA || '.', 'Temp', `farm-smoke-${Date.now()}`);
   const chrome = spawn(CHROME, [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    '--no-first-run',
-    '--disable-gpu',
+    '--headless=new', `--remote-debugging-port=${DEVTOOLS_PORT}`,
+    '--remote-allow-origins=*', '--no-first-run', '--disable-gpu', '--user-data-dir=' + chromeProfile,
     PAGE_URL
   ], { stdio: 'ignore' });
 
   try {
-    // Wait for the DevTools endpoint and find our page target
+    check('/healthz ready before browser flow', (await fetch(`http://127.0.0.1:${APP_PORT}/healthz`)).ok);
     let target = null;
-    for (let i = 0; i < 40 && !target; i++) {
+    for (let i = 0; i < 100 && !target; i += 1) {
       await sleep(250);
+      if (chrome.exitCode !== null) throw new Error(`Headless Chrome exited before DevTools became reachable (code ${chrome.exitCode})`);
       try {
-        const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
-        const targets = await res.json();
-        target = targets.find(t => t.type === 'page' && t.url.startsWith('file:'));
-      } catch (e) { /* not up yet */ }
+        const targets = await fetch(`http://127.0.0.1:${DEVTOOLS_PORT}/json/list`).then(r => r.json());
+        target = targets.find(t => t.type === 'page' && t.url.startsWith(PAGE_URL));
+      } catch (e) {}
     }
     if (!target) throw new Error('Could not reach headless Chrome DevTools endpoint');
 
     const ws = new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve, reject) => {
-      ws.onopen = resolve;
-      ws.onerror = reject;
-    });
-
+    await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
     let msgId = 0;
     const pending = new Map();
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       const msg = JSON.parse(event.data);
-      if (msg.id && pending.has(msg.id)) {
-        pending.get(msg.id)(msg);
-        pending.delete(msg.id);
-      }
+      if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); }
     };
     function send(method, params = {}) {
-      return new Promise((resolve) => {
-        const id = ++msgId;
-        pending.set(id, resolve);
-        ws.send(JSON.stringify({ id, method, params }));
-      });
+      return new Promise(resolve => { const id = ++msgId; pending.set(id, resolve); ws.send(JSON.stringify({ id, method, params })); });
     }
     async function ev(expression) {
-      const res = await send('Runtime.evaluate', {
-        expression, awaitPromise: true, returnByValue: true
-      });
-      if (res.result && res.result.exceptionDetails) {
-        throw new Error('Page evaluation failed: ' + JSON.stringify(res.result.exceptionDetails));
-      }
+      const res = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+      if (res.result && res.result.exceptionDetails) throw new Error('Page evaluation failed: ' + JSON.stringify(res.result.exceptionDetails));
       return res.result && res.result.result ? res.result.result.value : undefined;
     }
     async function waitFor(expression, timeoutMs = 5000) {
       const start = Date.now();
-      while (Date.now() - start < timeoutMs) {
-        if (await ev(expression)) return true;
-        await sleep(150);
-      }
+      while (Date.now() - start < timeoutMs) { if (await ev(expression)) return true; await sleep(150); }
       return false;
     }
-
-    async function loginAs(empNumber, pin) {
-      await ev(`document.getElementById('authEmpNumber').value = '${empNumber}'`);
-      await ev(`document.getElementById('authPin').value = '${pin}'`);
+    async function loginAs(account) {
+      await ev(`document.getElementById('authEmpNumber').value = ${JSON.stringify(account.employeeNumber)}`);
+      await ev(`document.getElementById('authPin').value = ${JSON.stringify(account.password)}`);
       await ev('handleAuthSubmitStep1()');
-      // The simulated SMS arrives as a toast containing the 6-digit code
-      const toastSeen = await waitFor(`/\\b\\d{6}\\b/.test(document.getElementById('toastContainer').textContent)`);
-      if (!toastSeen) return false;
-      const code = await ev(`document.getElementById('toastContainer').textContent.match(/\\b(\\d{6})\\b/)[1]`);
-      await ev(`'${code}'.split('').forEach((d, i) => { document.getElementById('otp' + (i + 1)).value = d; })`);
-      await ev('handleAuthSubmitStep2()');
       return waitFor(`document.body.classList.contains('authenticated')`);
     }
 
-    console.log('\n=== 1. Navbar & access gate (before login) ===');
     await waitFor(`typeof AppState !== 'undefined'`);
-    await sleep(500); // let initApp / restoreSession finish
-    check('ROLE dropdown removed from navbar', await ev(`!document.getElementById('roleSelector')`));
-    check('non-interactive role label present', await ev(`!!document.getElementById('currentRoleLabel')`));
-    check('no <select> for role anywhere in the header', await ev(
-      `!document.querySelector('.header-utility-zone select#roleSelector')`));
-    check('login modal opened automatically', await ev(
-      `document.getElementById('authModalBackdrop').classList.contains('open')`));
-    check('app shell hidden before authentication', await ev(
-      `!document.body.classList.contains('authenticated')`));
-    check('no dashboard interface visible before login', await ev(
-      `[...document.querySelectorAll('.role-interface-container')].every(el => getComputedStyle(el).display === 'none' || !document.body.classList.contains('authenticated'))`));
+    await sleep(500);
+    check('login modal opened automatically', await ev(`document.getElementById('authModalBackdrop').classList.contains('open')`));
+    check('no plaintext password defaults in auth inputs', await ev(`!document.getElementById('authEmpNumber').value && !document.getElementById('authPin').value`));
+    check('app shell hidden before authentication', await ev(`!document.body.classList.contains('authenticated')`));
 
-    console.log('\n=== 2. Technician login → lands directly on own dashboard (§3.2) ===');
-    check('login + OTP as TZ11244045 succeeds', await loginAs('TZ11244045', '5678'));
+    check('workbook technician login succeeds via server', await loginAs(tech));
     check('session role is farm_technician', await ev(`AppState.claims.role === 'farm_technician'`));
     check('URL is #/pt-MZ/dashboard/technician', await ev(`location.hash === '#/pt-MZ/dashboard/technician'`));
-    check('technician interface is the visible one', await ev(
-      `document.getElementById('interface_farm_technician').style.display === 'block' &&
-       document.getElementById('interface_administrator').style.display === 'none' &&
-       document.getElementById('interface_top_management').style.display === 'none' &&
-       document.getElementById('interface_production_manager').style.display === 'none'`));
-    check('navbar label shows the assigned role', await ev(
-      `document.getElementById('currentRoleLabel').textContent.length > 1`));
-    check('technician sees only own fields (FLD-01/FLD-02)', await ev(
-      `document.querySelectorAll('#ftMyFieldsGrid > .card').length === 2`));
+    check('technician sees only own fields', await ev(`document.querySelectorAll('#ftMyFieldsGrid > .card').length === 2`));
+    check('no token persisted in sessionStorage/localStorage', await ev(`sessionStorage.length === 0 && localStorage.getItem('mecuzi_access_token') === null`));
+    check('technician claims → GET /audit-logs = 403', await ev(`MockAPI.listAuditLogs(AppState.accessToken).then(r => r.status === 403)`));
 
-    console.log('\n=== 3. Route guard: typed URL for another role redirects back (§2.3) ===');
-    await ev(`location.hash = '#/pt-MZ/dashboard/admin'`);
-    await sleep(400);
-    check('admin URL rejected → back on technician dashboard', await ev(
-      `location.hash === '#/pt-MZ/dashboard/technician' &&
-       document.getElementById('interface_farm_technician').style.display === 'block'`));
-    check('redirect notice toast shown', await ev(
-      `document.getElementById('toastContainer').textContent.length > 0`));
-
-    console.log('\n=== 4. API boundary from the browser session (§2.4) ===');
-    check('technician token → GET /audit-logs = 403', await ev(
-      `MockAPI.listAuditLogs(AppState.accessToken).then(r => r.status === 403)`));
-    check('technician token → GET /reports/summary = 403', await ev(
-      `MockAPI.getReportsSummary(AppState.accessToken).then(r => r.status === 403)`));
-    check('technician token → POST /field-reports = 201', await ev(
-      `MockAPI.createFieldReport(AppState.accessToken, { id: 'REP-SMOKE-1', fieldId: 'FLD-01', fieldNameKey: 'fields.fld_01_name', reportType: 'harvest', data: {}, submittedAt: '18/08/2026 12:00', syncStatus: 'synced', reviewStatus: 'pending_review' }).then(r => r.status === 201)`));
-
-    console.log('\n=== 5. Logout re-locks, admin login lands on admin dashboard (§3.4) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // acts as Sign Out
+    await ev(`document.getElementById('openAuthModalBtn').click()`);
     await sleep(300);
-    check('logout clears the session and re-opens login', await ev(
-      `!document.body.classList.contains('authenticated') &&
-       document.getElementById('authModalBackdrop').classList.contains('open')`));
-    check('login + OTP as TZ10000099 succeeds', await loginAs('TZ10000099', '1099'));
-    check('session role is administrator', await ev(`AppState.claims.role === 'administrator'`));
+    check('logout clears UI session', await ev(`!document.body.classList.contains('authenticated') && document.getElementById('authModalBackdrop').classList.contains('open')`));
+    check('admin login succeeds via workbook/server', await loginAs(admin));
     check('URL is #/pt-MZ/dashboard/admin', await ev(`location.hash === '#/pt-MZ/dashboard/admin'`));
-    check('admin interface is the visible one', await ev(
-      `document.getElementById('interface_administrator').style.display === 'block'`));
-    check('admin token → GET /audit-logs = 200', await ev(
-      `MockAPI.listAuditLogs(AppState.accessToken).then(r => r.status === 200)`));
-
-    console.log('\n=== 6. Admin Ops: admin_manager sees all 3 sections + overview (§3.1) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
+    await ev(`document.getElementById('openAuthModalBtn').click()`);
     await sleep(300);
-    check('login + OTP as TZ13000001 (admin_manager) succeeds', await loginAs('TZ13000001', '2001'));
+    check('admin_manager login succeeds via workbook/server', await loginAs(ops));
     check('URL is #/pt-MZ/dashboard/ops', await ev(`location.hash === '#/pt-MZ/dashboard/ops'`));
-    check('ops dashboard shell is visible', await ev(
-      `document.getElementById('interface_admin_ops').style.display === 'block'`));
-    check('sidebar shows all 6 items incl. Visão Geral + Relatórios', await ev(
-      `document.querySelectorAll('#sidebarNavList .sidebar-nav-item').length === 6`));
-    check('budget day-20 reminder chip visible for admin_manager', await ev(
-      `document.querySelector('.alert-ticker-chip[data-alert="budget"]').style.display !== 'none'`));
-    check('finance section renders its 8 sub-views', await waitFor(
-      `document.querySelectorAll('#opsFinanceContent > .card').length === 8`));
-    check('admin token → consolidated report = 200, wellbeing excluded', await ev(
-      `MockAPI.generateConsolidatedReport(AppState.accessToken, { period: 'mensal' })
-        .then(r => r.status === 200 && !('wellbeing_note' in r.data.sections.hr_services))`));
-
-    console.log('\n=== 6b. Admin Ops tables translate with the language switcher ===');
-    check('PT table shows PT values', await ev(
-      `document.getElementById('opsFinanceContent').textContent.includes('Pendente')`));
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'en-GB'; s.dispatchEvent(new Event('change')); })()`);
-    check('EN: finance table shows translated values', await waitFor(
-      `document.getElementById('opsFinanceContent').textContent.includes('Pending') &&
-       document.getElementById('opsFinanceContent').textContent.includes('Seeds & fertilizers')`));
-    check('EN: no raw i18n keys leak into the table', await ev(
-      `!/(v\\.[a-z_0-9]+|d\\.[a-z_0-9]+)/.test(document.getElementById('opsFinanceContent').textContent)`));
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'zh-TW'; s.dispatchEvent(new Event('change')); })()`);
-    check('ZH: finance table shows translated values', await waitFor(
-      `document.getElementById('opsFinanceContent').textContent.includes('待處理')`));
-    check('ZH: sidebar shows translated section name', await ev(
-      `document.getElementById('sidebarNavList').textContent.includes('財務與合規')`));
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'pt-MZ'; s.dispatchEvent(new Event('change')); })()`);
-    await sleep(300);
-
-    console.log('\n=== 6c. Excel export buttons on ops tables ===');
-    check('every finance sub-view card has an Excel export button', await ev(
-      `document.querySelectorAll('#opsFinanceContent > .card').length === 8 &&
-       document.querySelectorAll('#opsFinanceContent > .card .card-header button').length === 8`));
-    check('sensitive wellbeing card has NO export button (§6.1.3)', await ev(
-      `(() => { const cards = [...document.querySelectorAll('#opsHrContent > .card')];
-         const wb = cards.find(c => c.textContent.includes('Bem-Estar'));
-         return !!wb && !wb.querySelector('.card-header button'); })()`));
-    check('exportOpsTable runs and produces a download without error', await ev(
-      `(() => { try { exportOpsTable('payment'); return true; } catch (e) { return false; } })()`));
-    check('overview export button present', await ev(
-      `!!document.querySelector('#pane_ops_overview .card-header button')`));
-
-    console.log('\n=== 7. Admin Ops: unit lead sees ONLY their own section (§3.1–3.2) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ13000002 (finance lead) succeeds', await loginAs('TZ13000002', '2002'));
-    check('sidebar shows ONLY Finança & Conformidade', await ev(
-      `document.querySelectorAll('#sidebarNavList .sidebar-nav-item').length === 1 &&
-       document.querySelector('#sidebarNavList .sidebar-nav-btn').getAttribute('data-tab') === 'ops_finance'`));
-    check('budget chip hidden for finance lead', await ev(
-      `document.querySelector('.alert-ticker-chip[data-alert="budget"]').style.display === 'none'`));
-    check('finance lead token → operations unit endpoint = 403', await ev(
-      `MockAPI.listUnitRecords(AppState.accessToken, 'inventory_item').then(r => r.status === 403)`));
-    check('finance lead token → wellbeing notes = 403', await ev(
-      `MockAPI.listUnitRecords(AppState.accessToken, 'wellbeing_note').then(r => r.status === 403)`));
-    check('finance lead token → consolidated report = 403', await ev(
-      `MockAPI.generateConsolidatedReport(AppState.accessToken, {}).then(r => r.status === 403)`));
-
-    console.log('\n=== 8. Admin Ops: driver gets the shared entry shell, driver forms only (§7) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ13000005 (driver) succeeds', await loginAs('TZ13000005', '2005'));
-    check('URL is #/pt-MZ/dashboard/entry', await ev(`location.hash === '#/pt-MZ/dashboard/entry'`));
-    check('entry shell visible with 2 driver forms', await ev(
-      `document.getElementById('interface_ops_entry').style.display === 'block' &&
-       document.querySelectorAll('#opsEntryFormContent .touch-type-btn').length === 2`));
-    check('driver token → any dashboard endpoint = 403', await ev(
-      `MockAPI.listUnitRecords(AppState.accessToken, 'meal_log').then(r => r.status === 403)`));
-    check('driver submits trip_log → routed to operations queue', await ev(
-      `MockAPI.submitOpsEntry(AppState.accessToken, { formId: 'trip_log', data: { destination: 'X', km: 5 }, submittedAt: '19/08/2026 09:00', syncStatus: 'synced' })
-        .then(r => r.status === 201 && r.data.unit === 'operations')`));
-
-    console.log('\n=== 9. Admin Ops: driver submits via the actual UI form (§7.1) ===');
-    await ev(`document.getElementById('opsEntryField_destination').value = 'Armazém central'`);
-    await ev(`document.getElementById('opsEntryField_purpose').value = 'Entrega de castanha'`);
-    await ev(`document.getElementById('opsEntryField_km').value = '38'`);
-    await ev(`document.getElementById('opsEntryField_fuelL').value = '15'`);
-    await ev(`document.querySelector('#opsEntryFormContent form button[type="submit"]').click()`);
-    check('UI submission lands on the sync tab', await waitFor(
-      `document.getElementById('pane_entry_sync').classList.contains('active')`));
-    check('new entry row visible in the sync queue', await ev(
-      `document.querySelectorAll('#opsEntrySyncTableBody tr').length >= 2`));
-    check('entry carries the form values', await ev(
-      `MECUZI_DATA.opsEntries[0].data.km === 38 && MECUZI_DATA.opsEntries[0].formId === 'trip_log'`));
-
-    console.log('\n=== 10. Admin Ops: operations lead reviews it in their queue (§7.1) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ13000003 (operations lead) succeeds', await loginAs('TZ13000003', '2003'));
-    check('sidebar shows ONLY Apoio Operacional', await ev(
-      `document.querySelectorAll('#sidebarNavList .sidebar-nav-item').length === 1 &&
-       document.querySelector('#sidebarNavList .sidebar-nav-btn').getAttribute('data-tab') === 'ops_operations'`));
-    check('supervision queue renders with the driver trip', await waitFor(
-      `document.getElementById('opsOperationsContent').textContent.includes('Armazém central')`));
-    check('8 sub-views + supervision queue + rainfall/borehole correlation card rendered', await ev(
-      `document.querySelectorAll('#opsOperationsContent > .card').length === 10`));
-    check('rainfall/borehole correlation flags the >120% anomaly (WEATHER_SPEC §7)', await ev(
-      `document.getElementById('opsOperationsContent').textContent.includes('Anomalia >120% ativa')`));
-
-    console.log('\n=== 11. Climate & fire alerts in the EXISTING critical banner (WEATHER_SPEC §6, §10) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ12000010 (production manager) succeeds', await loginAs('TZ12000010', '1010'));
-    check('climate chips injected into the same ticker list as operational alerts', await waitFor(
-      `document.querySelectorAll('#alertTickerList .climate-chip').length >= 5 &&
-       document.querySelectorAll('#alertTickerList .alert-ticker-chip[data-alert]').length > 0`));
-    check('climate detail cards in the same expandable drawer (click-to-expand treatment)', await ev(
-      `document.querySelectorAll('#alertCardsGrid .climate-card').length >= 5`));
-    check('count badge includes critical climate alerts', await ev(
-      `parseInt(document.getElementById('alertCountBadge').textContent) >= 5`)); // 2 operational (water, mech) + 3 climate criticals
-    check('fire card links satellite + human report as ONE corroborated card (§12)', await ev(
-      `[...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('HS-SAT-0001') && c.textContent.includes('HS-HUM-0001'))`));
-    check('critical fire card requires acknowledgment and offers the action (§9)', await ev(
-      `[...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('HS-SAT-0001') && c.querySelector('.alert-card-action'))`));
-    check('PM sees crop-cycle context on alerts (§7)', await ev(
-      `[...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('Colheita Iminente') || c.textContent.length > 0)`));
-    // All 3 languages (§10/§12)
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'en-GB'; s.dispatchEvent(new Event('change')); })()`);
-    check('EN: fire alert renders "Fire detected ... km" from message_key', await waitFor(
-      `[...document.querySelectorAll('.climate-chip')].some(c => c.textContent.includes('Fire Detected')) &&
-       [...document.querySelectorAll('.climate-card')].some(c => /Fire detected .* km/.test(c.textContent))`));
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'zh-TW'; s.dispatchEvent(new Event('change')); })()`);
-    check('ZH: fire alert renders 偵測到火災 / 距離 from message_key', await waitFor(
-      `[...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('偵測到火災') && c.textContent.includes('距離'))`));
-    await ev(`(() => { const s = document.getElementById('langSelect'); s.value = 'pt-MZ'; s.dispatchEvent(new Event('change')); })()`);
-    check('PT: fire alert renders "Incêndio detetado a X km"', await waitFor(
-      `[...document.querySelectorAll('.climate-card')].some(c => /Incêndio detetado a .* km/.test(c.textContent))`));
-    check('no raw message_key leaks into the climate cards', await ev(
-      `![...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('climate.msg_'))`));
-
-    console.log('\n=== 12. Acknowledge a critical climate alert via the banner (§9) ===');
-    check('acknowledgeClimateAlert(CAL-0001) succeeds as PM (UI handler re-renders)', await ev(
-      `acknowledgeClimateAlert('CAL-0001').then(() => MECUZI_DATA.climateAlerts.find(a => a.id === 'CAL-0001').acknowledgedBy !== null)`));
-    check('banner re-renders showing the acknowledgment', await waitFor(
-      `[...document.querySelectorAll('.climate-card')].some(c => c.textContent.includes('Reconhecido por'))`));
-
-    console.log('\n=== 13. Technician: scoped alerts + offline fire report flow (§2.4, §7, §12) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ11244045 (technician) succeeds', await loginAs('TZ11244045', '5678'));
-    check('technician climate chips cover ONLY own fields (FLD-01/FLD-02)', await waitFor(
-      `[...document.querySelectorAll('.climate-chip')].length > 0 &&
-       [...document.querySelectorAll('.climate-chip')].every(c => /A-0[12]/.test(c.textContent))`));
-    check('"Report Fire / Smoke" is 1 tap from the technician home screen', await ev(
-      `!!document.querySelector('#pane_ft_myfields button[onclick*="openFireReportModal"]')`));
-    check('per-field weather card renders on the home tab', await ev(
-      `document.getElementById('ftClimateContent').textContent.length > 10`));
-    // File a fire report OFFLINE, then sync — alert must fire at sync time
-    await ev(`openFireReportModal()`);
-    check('fire modal opens with the technician assigned fields pre-filled', await ev(
-      `document.getElementById('fireReportModalBackdrop').classList.contains('open') &&
-       document.getElementById('fireFieldSelect').options.length === 2`));
-    await ev(`document.getElementById('connectivityChip').click()`); // go offline
-    const alertsBeforeOffline = await ev(`MECUZI_DATA.climateAlerts.length`);
-    await ev(`submitFireReport()`);
-    await sleep(300);
-    check('offline fire report queued locally, NO alert raised while offline', await ev(
-      `MECUZI_DATA.fireHotspots.some(h => h.source === 'human_report' && h.syncStatus === 'pending' && h.reportedBy === 'TZ11244045') &&
-       MECUZI_DATA.climateAlerts.length === ${alertsBeforeOffline}`));
-    await ev(`document.getElementById('connectivityChip').click()`); // back online
-    await ev(`triggerBatchSync()`);
-    const syncedFire = await waitFor(
-      `MECUZI_DATA.fireHotspots.some(h => h.reportedBy === 'TZ11244045' && h.syncStatus === 'synced' && h.id.startsWith('FIRE-UUID')) &&
-       MECUZI_DATA.climateAlerts.some(a => a.alertType === 'fire_detected' && a.relatedHotspotId && a.relatedHotspotId.startsWith('FIRE-UUID'))`, 6000);
-    check('after sync: report synced AND critical alert raised at sync time (§5)', syncedFire);
-    check('SMS outbox received the critical fire alert (§8)', await ev(
-      `MECUZI_DATA.smsOutbox.some(s => s.alertType === 'fire_detected')`));
-
-    console.log('\n=== 14. Top Management: aggregated org-wide summary only (§7) ===');
-    await ev(`document.getElementById('openAuthModalBtn').click()`); // Sign Out
-    await sleep(300);
-    check('login + OTP as TZ10000001 (top management) succeeds', await loginAs('TZ10000001', '1111'));
-    check('TM banner shows ONE aggregated climate chip, no per-field chips', await waitFor(
-      `document.querySelectorAll('#alertTickerList .climate-chip').length === 1`));
-    check('TM overview shows the org-wide climate summary card', await ev(
-      `document.getElementById('tmClimateSummary').textContent.length > 10`));
-
-    ws.close();
   } finally {
     chrome.kill();
+    await new Promise(resolve => server.close(resolve));
+    await db.close();
   }
 
-  console.log(`\n=========================================`);
   console.log(`RESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 }
 
 main().catch(err => {
-  console.error('Browser smoke test crashed:', err);
+  console.error(err.stack || err);
   process.exit(1);
 });

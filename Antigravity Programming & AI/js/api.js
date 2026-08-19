@@ -126,86 +126,68 @@
   }
 
   /* ----------------------------------------------------------------------
-     JWT (HS256) helpers — real HMAC-SHA256 via Web Crypto (browser + Node)
+     Server-owned auth session helpers
+
+     No credential, JWT secret, password hash, salt, or session identifier is
+     embedded in this browser bundle. Authentication is delegated to the same
+     origin Express server, which returns only public role claims and sets an
+     HttpOnly signed cookie.
      ---------------------------------------------------------------------- */
-  const JWT_SECRET = 'mecuzi-demo-hmac-secret-do-not-use-in-production';
-  const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // BACKEND_SPEC.md §2.3: short-lived access token
-
-  function b64urlEncodeString(str) {
-    const bytes = new TextEncoder().encode(str);
-    let bin = '';
-    bytes.forEach(b => { bin += String.fromCharCode(b); });
-    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  function publicClaimsFromSession(session) {
+    if (!session || !ROLES.includes(session.role) || !session.employeeNumber) return null;
+    return {
+      sub: session.employeeNumber,
+      employeeNumber: session.employeeNumber,
+      name: session.name || session.functionName || session.employeeNumber,
+      role: session.role,
+      roleKey: session.roleKey || `roles.${session.role}`,
+      status: session.status || 'active'
+    };
   }
 
-  function b64urlEncodeBuffer(buf) {
-    const bytes = new Uint8Array(buf);
-    let bin = '';
-    bytes.forEach(b => { bin += String.fromCharCode(b); });
-    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  async function authFetch(path, options = {}) {
+    const res = await fetch(path, Object.assign({ credentials: 'same-origin' }, options));
+    let body = null;
+    try { body = await res.json(); } catch (e) { body = {}; }
+    if (!res.ok || !body.ok) {
+      return { ok: false, status: res.status, error: (body && body.error) || 'errors.session_expired' };
+    }
+    return { ok: true, status: res.status, data: body };
   }
 
-  function b64urlDecodeString(b64url) {
-    const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-    const bin = atob(b64);
-    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
+  async function loginWithServer(employeeNumber, password) {
+    return authFetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeNumber, password })
+    });
   }
 
-  async function hmacSign(data) {
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(JWT_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
-    return b64urlEncodeBuffer(signature);
+  async function getServerSession() {
+    return authFetch('/api/auth/session');
   }
 
-  async function issueAccessToken(employee) {
-    const now = Math.floor(Date.now() / 1000);
-    const header = b64urlEncodeString(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    // The `role` claim comes ONLY from the employee record — never from user input
-    // (ACCESS_CONTROL_FIX.md §2.1).
-    const payload = b64urlEncodeString(JSON.stringify({
-      sub: employee.employeeNumber,
-      name: employee.name,
-      role: employee.role,
-      iat: now,
-      exp: now + ACCESS_TOKEN_TTL_SECONDS
-    }));
-    const signature = await hmacSign(`${header}.${payload}`);
-    return `${header}.${payload}.${signature}`;
+  async function logoutWithServer() {
+    return authFetch('/api/auth/logout', { method: 'POST' });
   }
 
-  // Returns { ok: true, claims } or { ok: false, status: 401, error }
-  async function verifyAccessToken(token) {
-    if (!token || typeof token !== 'string') {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
+  // Returns { ok: true, claims } or { ok: false, status: 401, error }.
+  // Existing MockAPI functions still accept a first `token` argument, but it is
+  // now a non-secret public claims object derived from the server session.
+  async function verifyAccessToken(session) {
+    const localClaims = publicClaimsFromSession(session);
+    if (localClaims) return { ok: true, claims: localClaims };
+
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      const res = await getServerSession();
+      if (res.ok) {
+        const claims = publicClaimsFromSession(res.data.session || res.data.employee);
+        if (claims) return { ok: true, claims };
+      }
+      return { ok: false, status: res.status || 401, error: res.error || 'errors.session_expired' };
     }
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
-    }
-    const expectedSig = await hmacSign(`${parts[0]}.${parts[1]}`);
-    if (expectedSig !== parts[2]) {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
-    }
-    let claims;
-    try {
-      claims = JSON.parse(b64urlDecodeString(parts[1]));
-    } catch (e) {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
-    }
-    if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
-    }
-    if (!ROLES.includes(claims.role)) {
-      return { ok: false, status: 401, error: 'errors.session_expired' };
-    }
-    return { ok: true, claims };
+
+    return { ok: false, status: 401, error: 'errors.session_expired' };
   }
 
   /* ----------------------------------------------------------------------
@@ -222,32 +204,9 @@
   }
 
   /* ----------------------------------------------------------------------
-     OTP challenge store (mock of Twilio Verify — BACKEND_SPEC.md §1/§2.4)
-     Codes are 6 digits, 5-minute expiry, single-use. `devOtp` in the login
-     response simulates the SMS delivery so the demo/tests can read the code.
+     OTP is disabled in this Render demo because the workbook has no phone
+     numbers. The stale MockAPI.verifyOtp path returns 410 fail-closed.
      ---------------------------------------------------------------------- */
-  const otpChallenges = new Map();
-  let challengeCounter = 0;
-
-  function createOtpChallenge(employeeNumber) {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const challengeId = `CHL-${Date.now()}-${++challengeCounter}`;
-    // Invalidate any previous challenge for this employee (BACKEND_SPEC.md §2.4)
-    for (const [id, ch] of otpChallenges) {
-      if (ch.employeeNumber === employeeNumber) otpChallenges.delete(id);
-    }
-    otpChallenges.set(challengeId, {
-      employeeNumber,
-      code,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      consumed: false
-    });
-    return { challengeId, code };
-  }
-
-  function maskPhone(phone) {
-    return phone.replace(/(\+258\s?\d{2})\s?\d{3}\s?(\d{4})/, '$1 *** $2');
-  }
 
   /* ----------------------------------------------------------------------
      Audit trail (BACKEND_SPEC.md §7) — every security-relevant write action
@@ -816,58 +775,32 @@
     ROLES,
     verifyAccessToken,
 
-    /* --- Auth (BACKEND_SPEC.md §2.3) — public, no token required --- */
+    /* --- Auth (server-owned session cookie) — public, no token required --- */
 
-    // POST /auth/login — employee number + PIN -> challenge_id (+ simulated SMS)
-    async login(employeeNumber, pin) {
-      const emp = db().employees.find(e => e.employeeNumber === employeeNumber);
-      if (!emp) {
-        return { ok: false, status: 401, error: 'errors.employee_not_found' };
-      }
-      if (emp.pin !== pin) {
-        return { ok: false, status: 401, error: 'errors.incorrect_pin' };
-      }
-      const { challengeId, code } = createOtpChallenge(emp.employeeNumber);
+    // POST /api/auth/login — employee number + workbook password. The server
+    // verifies the salted scrypt hash and sets an HttpOnly signed cookie.
+    async login(employeeNumber, password) {
+      const res = await loginWithServer(employeeNumber, password);
+      if (!res.ok) return res;
       return {
         ok: true,
         status: 200,
         data: {
-          challengeId,
-          maskedPhone: maskPhone(emp.phone),
-          devOtp: code // simulated SMS payload (mock provider)
+          employee: res.data.employee,
+          session: res.data.session,
+          mustSetPin: false
         }
       };
     },
 
-    // POST /auth/verify-otp — challenge_id + OTP -> JWT (role claim inside)
-    async verifyOtp(challengeId, code) {
-      const ch = otpChallenges.get(challengeId);
-      if (!ch || ch.consumed || ch.expiresAt < Date.now() || ch.code !== String(code || '').trim()) {
-        return { ok: false, status: 401, error: 'errors.otp_invalid' };
-      }
-      ch.consumed = true; // single-use (BACKEND_SPEC.md §2.4)
-      const emp = db().employees.find(e => e.employeeNumber === ch.employeeNumber);
-      if (!emp) {
-        return { ok: false, status: 401, error: 'errors.employee_not_found' };
-      }
-      const accessToken = await issueAccessToken(emp);
-      writeAuditLog(`${emp.name} (${emp.employeeNumber})`, emp.role,
-        'audit_actions.LOGIN_SUCCESS', 'Auth', emp.employeeNumber, 'audit_meta.auth_sms_otp');
-      return {
-        ok: true,
-        status: 200,
-        data: {
-          accessToken,
-          mustSetPin: emp.status === 'pending',
-          employee: {
-            employeeNumber: emp.employeeNumber,
-            name: emp.name,
-            role: emp.role,
-            roleKey: emp.roleKey,
-            status: emp.status
-          }
-        }
-      };
+    // Kept only so stale callers fail closed. The workbook has no phone numbers,
+    // so OTP is intentionally disabled for this Render demo.
+    async verifyOtp() {
+      return { ok: false, status: 410, error: 'errors.otp_disabled' };
+    },
+
+    async logout() {
+      return logoutWithServer();
     },
 
     /* --- Administration endpoints [administrator] (BACKEND_SPEC.md §8) --- */
@@ -891,7 +824,6 @@
         phone: payload.phone,
         role: role,
         roleKey: `roles.${role}`,
-        pin: payload.tempPin || '0000',
         status: 'pending',
         point: payload.point || 'Point_A',
         rotation: '14/2 Cycle A',
@@ -913,7 +845,6 @@
       if (!emp) {
         return { ok: false, status: 404, error: 'errors.employee_not_found' };
       }
-      emp.pin = '0000';
       emp.status = 'pending';
       writeAuditLog(`${auth.claims.name} (${auth.claims.sub})`, auth.claims.role,
         'audit_actions.PIN_RESET', 'Employee', employeeNumber, 'audit_meta.pin_reset_samuel');
@@ -1387,13 +1318,10 @@
       return { ok: true, status: 200, data: { synced: queued.length, alertsRaised: raised } };
     },
 
-    /* --- Test hook: sign an arbitrary payload (used ONLY by the test suite
-           to prove tampered/foreign-role claims are rejected) --- */
-    async _signTestToken(payload) {
-      const header = b64urlEncodeString(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-      const body = b64urlEncodeString(JSON.stringify(payload));
-      const signature = await hmacSign(`${header}.${body}`);
-      return `${header}.${body}.${signature}`;
+    /* --- Legacy test hook removed: no browser-side token signer exists in the
+           secure Render demo. --- */
+    async _signTestToken() {
+      return null;
     }
   };
 
