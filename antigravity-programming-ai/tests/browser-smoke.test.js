@@ -15,7 +15,7 @@ const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const DEVTOOLS_PORT = Number(process.env.DEVTOOLS_PORT || (9333 + Math.floor(Math.random() * 500)));
 const APP_PORT = Number(process.env.TEST_PORT || 3421);
 const PAGE_URL = `http://127.0.0.1:${APP_PORT}/`;
-const WORKBOOK = process.env.TEST_ACCOUNTS_XLSX || (fs.existsSync('C:/Users/user/Downloads/Test_Accounts2.xlsx') ? 'C:/Users/user/Downloads/Test_Accounts2.xlsx' : ATTACHED_INPUT);
+const WORKBOOK = process.env.TEST_ACCOUNTS_XLSX || ATTACHED_INPUT;
 
 let passed = 0;
 let failed = 0;
@@ -92,7 +92,7 @@ async function main() {
     await waitFor(`typeof AppState !== 'undefined'`);
     await sleep(500);
     check('login modal opened automatically', await ev(`document.getElementById('authModalBackdrop').classList.contains('open')`));
-    check('selector has no password input or arbitrary role control', await ev(`!document.querySelector('input[type="password"]') && !document.querySelector('[name="role"]')`));
+    check('selector has no password input, OTP/reset controls, or arbitrary role control', await ev(`!document.querySelector('input[type="password"]') && !document.querySelector('[id^="otp"]') && !document.querySelector('[id*="PermanentPin"]') && !document.querySelector('[name="role"]')`));
     check('app shell hidden before authentication', await ev(`!document.body.classList.contains('authenticated')`));
 
     check('selector technician login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_farm_technician' }));

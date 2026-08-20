@@ -53,7 +53,7 @@
           <span class="role-label-text" id="currentRoleLabel">—</span>
         </div>
 
-        <!-- Login / Logout (Employee # + server-side workbook password) -->
+        <!-- Login / Logout (demo account selector; identity remains server-derived) -->
         <button class="btn-auth-demo" id="openAuthModalBtn" title="Autenticação segura no servidor">
           <span id="authBtnLabel" data-i18n="app.btn_login">Entrar</span>
         </button>
@@ -964,7 +964,7 @@
   </div>
 
   <!-- ========================================================================
-       Interactive Authentication & OTP Modal (FRONTEND_SPEC.md §2)
+       Demo account selector modal
        ======================================================================== -->
   <div class="auth-modal-backdrop" id="authModalBackdrop">
     <div class="auth-modal-card">
@@ -972,73 +972,22 @@
 
       <div class="auth-header">
         <img src="images/tzu-chi-logo.png" alt="Tzu Chi Logo" class="auth-header-logo">
-        <h3 class="auth-title" id="authStepTitle" data-i18n="auth.step1_title">Autenticação do Colaborador</h3>
-        <p class="auth-subtitle" id="authStepSubtitle" data-i18n="auth.step1_sub">Introduza o seu Número de Funcionário e PIN</p>
+        <h3 class="auth-title" id="authStepTitle" data-i18n="auth.demo.title">Acesso de demonstração</h3>
+        <p class="auth-subtitle" id="authStepSubtitle" data-i18n="auth.demo.instructions">Escolha uma conta para entrar nesta demonstração.</p>
       </div>
 
-      <!-- Step 1: Employee # + password. The password is verified only by the server. -->
+      <!-- Demo-only selector. No employee number, password, OTP, or reset input is collected. -->
       <div id="authStep1">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="form-group">
-            <label class="form-label" data-i18n="auth.lbl_emp_number">Número de Funcionário (ex: TZ11244043):</label>
+            <label class="form-label" for="demoAccountSelect" data-i18n="auth.demo.field_label">Conta</label>
             <select class="form-control" id="demoAccountSelect" required>
               <option value="" data-i18n="auth.demo.placeholder">Select an account</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="auth.lbl_pin">Palavra-passe:</label>
-            <p id="demoAccountError" class="auth-subtitle" style="display:none;" data-i18n="auth.demo.unavailable">Demo accounts are temporarily unavailable.</p>
-            <small style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.2rem;" data-i18n="auth.forgot_pin_help">Esqueceu o seu PIN? Contacte o administrador.</small>
-          </div>
+          <p id="demoAccountError" class="auth-subtitle" style="display:none;" data-i18n="auth.demo.unavailable">Demo accounts are temporarily unavailable.</p>
           <button class="btn btn-primary" id="demoAccountSubmit" onclick="handleAuthSubmitStep1()" disabled style="margin-top: 0.35rem;">
-            <span data-i18n="auth.btn_request_otp">Entrar com sessão segura</span>
-            <span class="btn-arrow-circle">→</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2: 6-digit SMS OTP -->
-      <div id="authStep2" style="display: none;">
-        <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: center;">
-          <p style="font-size: 12px; color: var(--color-text);">
-            <span data-i18n="auth.code_sent_to">Código enviado para o número</span>
-            <strong id="maskedPhoneDisplay">+258 84 *** 8901</strong>
-          </p>
-
-          <div class="otp-digit-inputs">
-            <input type="text" maxlength="1" class="otp-box" id="otp1" onkeyup="handleOtpInput(1, event)">
-            <input type="text" maxlength="1" class="otp-box" id="otp2" onkeyup="handleOtpInput(2, event)">
-            <input type="text" maxlength="1" class="otp-box" id="otp3" onkeyup="handleOtpInput(3, event)">
-            <input type="text" maxlength="1" class="otp-box" id="otp4" onkeyup="handleOtpInput(4, event)">
-            <input type="text" maxlength="1" class="otp-box" id="otp5" onkeyup="handleOtpInput(5, event)">
-            <input type="text" maxlength="1" class="otp-box" id="otp6" onkeyup="handleOtpInput(6, event)">
-          </div>
-
-          <div style="font-size: 11px; color: var(--color-text-muted);">
-            <span data-i18n="auth.resend_in">Reenviar código em</span> <span id="otpCountdown" style="font-weight: 700; color: var(--color-accent);">30</span>s
-          </div>
-
-          <button class="btn btn-primary" onclick="handleAuthSubmitStep2()" style="margin-top: 0.35rem;">
-            <span data-i18n="auth.btn_verify_enter">Verificar e Entrar</span>
-            <span class="btn-arrow-circle">→</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Activation Variant (Set Permanent PIN for pending accounts) -->
-      <div id="authStep3" style="display: none;">
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          <p style="font-size: 12px; color: var(--color-text-muted);" data-i18n="auth.activation_help">Primeiro acesso: Defina o seu PIN permanente de 4 a 6 dígitos numéricos.</p>
-          <div class="form-group">
-            <label class="form-label" data-i18n="auth.lbl_new_pin">Novo PIN:</label>
-            <input type="password" maxlength="6" class="form-control" id="newPermanentPin" placeholder="••••">
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="auth.lbl_confirm_pin">Confirmar Novo PIN:</label>
-            <input type="password" maxlength="6" class="form-control" id="confirmPermanentPin" placeholder="••••">
-          </div>
-          <button class="btn btn-primary" onclick="handleAuthSubmitStep3()" style="margin-top: 0.35rem;">
-            <span data-i18n="auth.btn_activate_account">Ativar Conta & Entrar</span>
+            <span data-i18n="auth.demo.submit">Entrar na demonstração</span>
             <span class="btn-arrow-circle">→</span>
           </button>
         </div>

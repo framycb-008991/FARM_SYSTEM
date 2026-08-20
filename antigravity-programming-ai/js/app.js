@@ -1076,9 +1076,8 @@ function filterAuditLogs() {
 }
 
 /* ==========================================================================
-   Authentication Flow (server-side workbook password auth)
-   Employee number + password → HttpOnly signed cookie → automatic dashboard.
-   OTP is disabled because the workbook source has no phone numbers.
+   Authentication Flow (demo account selector)
+   Opaque selection ID → HttpOnly signed cookie → automatic dashboard.
    ========================================================================== */
 function openAuthModal() {
   const modal = document.getElementById('authModalBackdrop');
@@ -1102,18 +1101,12 @@ function showAuthStep(stepNumber) {
   const subEl = document.getElementById('authStepSubtitle');
 
   if (stepNumber === 1) {
-    if (titleEl) titleEl.textContent = t('auth.step1_title');
-    if (subEl) subEl.textContent = t('auth.step1_sub');
-  } else if (stepNumber === 2) {
-    if (titleEl) titleEl.textContent = t('auth.step2_title');
-    if (subEl) subEl.textContent = t('auth.step2_sub');
-  } else if (stepNumber === 3) {
-    if (titleEl) titleEl.textContent = t('auth.step3_title');
-    if (subEl) subEl.textContent = t('auth.step3_sub');
+    if (titleEl) titleEl.textContent = t('auth.demo.title');
+    if (subEl) subEl.textContent = t('auth.demo.instructions');
   }
 }
 
-// Step 1 — POST /api/auth/login: employee number + workbook password -> server session
+// Demo selector — POST /api/auth/demo-login: opaque selection ID -> server session
 async function handleAuthSubmitStep1() {
   const selectionId = document.getElementById('demoAccountSelect')?.value;
   if (!selectionId) return;
@@ -1144,40 +1137,6 @@ async function loadDemoAccounts() {
     option.dataset.i18n = account.labelKey;
     select.appendChild(option);
   });
-}
-
-function handleOtpInput(digitIndex, event) {
-  if (event.key === 'Backspace') {
-    if (digitIndex > 1) {
-      document.getElementById(`otp${digitIndex - 1}`).focus();
-    }
-  } else if (event.target.value.length === 1) {
-    if (digitIndex < 6) {
-      document.getElementById(`otp${digitIndex + 1}`).focus();
-    }
-  }
-}
-
-function startOtpTimer() {
-  let seconds = 30;
-  const timerEl = document.getElementById('otpCountdown');
-  const interval = setInterval(() => {
-    seconds--;
-    if (timerEl) timerEl.textContent = seconds;
-    if (seconds <= 0) {
-      clearInterval(interval);
-    }
-  }, 1000);
-}
-
-// Legacy OTP path: disabled for workbook-only auth.
-async function handleAuthSubmitStep2() {
-  showToast(t('errors.otp_disabled'), 'error');
-}
-
-// Password activation/reset is server-side/out of scope for this demo.
-function handleAuthSubmitStep3() {
-  showToast(t('errors.password_reset_disabled'), 'error');
 }
 
 // Session established: retain only public server-derived claims in memory, then

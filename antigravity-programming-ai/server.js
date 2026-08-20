@@ -211,17 +211,27 @@ function createApp(options = {}) {
         return res.status(404).json({ ok: false, error: 'auth.demo.unavailable' });
       }
       const selectionId = typeof req.body.selectionId === 'string' ? req.body.selectionId : '';
+      const limited = rateLimit.check(req, `demo:${selectionId}`);
+      if (limited.limited) {
+        res.set('Retry-After', String(limited.retryAfterSeconds));
+        return res.status(429).json({ ok: false, error: 'errors.too_many_attempts' });
+      }
       const accounts = await validatedDemoAccounts(db);
       const selected = accounts.find(item => {
         const expected = Buffer.from(selectorId(sessionSecret, item.account.employeeNumber));
         const actual = Buffer.from(selectionId);
         return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
       });
-      if (!selected) return res.status(401).json({ ok: false, error: 'auth.demo.invalid' });
-      const account = await db.findAccount(selected.account.employeeNumber);
-      if (!account || account.status !== 'active' || account.role !== selected.account.role) {
+      if (!selected) {
+        rateLimit.recordFailure(req, `demo:${selectionId}`);
         return res.status(401).json({ ok: false, error: 'auth.demo.invalid' });
       }
+      const account = await db.findAccount(selected.account.employeeNumber);
+      if (!account || account.status !== 'active' || account.role !== selected.account.role) {
+        rateLimit.recordFailure(req, `demo:${selectionId}`);
+        return res.status(401).json({ ok: false, error: 'auth.demo.invalid' });
+      }
+      rateLimit.clear(req, `demo:${selectionId}`);
       const session = await createServerSession(db, res, account);
       return res.status(200).json({ ok: true, employee: publicEmployee(account), session: publicEmployee(session) });
     } catch (err) {
