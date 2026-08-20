@@ -981,14 +981,16 @@
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="form-group">
             <label class="form-label" data-i18n="auth.lbl_emp_number">Número de Funcionário (ex: TZ11244043):</label>
-            <input type="text" class="form-control" id="authEmpNumber" autocomplete="username" placeholder="TZ11244043" required>
+            <select class="form-control" id="demoAccountSelect" required>
+              <option value="" data-i18n="auth.demo.placeholder">Select an account</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="auth.lbl_pin">Palavra-passe:</label>
-            <input type="password" maxlength="64" class="form-control" id="authPin" autocomplete="current-password" placeholder="••••" required>
+            <p id="demoAccountError" class="auth-subtitle" style="display:none;" data-i18n="auth.demo.unavailable">Demo accounts are temporarily unavailable.</p>
             <small style="font-size: 10px; color: var(--color-text-muted); margin-top: 0.2rem;" data-i18n="auth.forgot_pin_help">Esqueceu o seu PIN? Contacte o administrador.</small>
           </div>
-          <button class="btn btn-primary" onclick="handleAuthSubmitStep1()" style="margin-top: 0.35rem;">
+          <button class="btn btn-primary" id="demoAccountSubmit" onclick="handleAuthSubmitStep1()" disabled style="margin-top: 0.35rem;">
             <span data-i18n="auth.btn_request_otp">Entrar com sessão segura</span>
             <span class="btn-arrow-circle">→</span>
           </button>

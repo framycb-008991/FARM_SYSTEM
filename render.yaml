@@ -10,6 +10,8 @@ services:
         value: production
       - key: SESSION_SECRET
         sync: false
+      - key: DEMO_ACCOUNT_SELECTOR_ENABLED
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_SSL

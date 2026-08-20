@@ -257,6 +257,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initApp() {
+  document.getElementById('authStep2')?.remove();
+  document.getElementById('authStep3')?.remove();
+  document.getElementById('authEmpNumber')?.remove();
+  document.getElementById('authPin')?.remove();
+  document.getElementById('newPermanentPin')?.remove();
+  document.getElementById('confirmPermanentPin')?.remove();
   // 1. Language selector setup
   const langSelect = document.getElementById('langSelect');
   if (langSelect) {
@@ -313,6 +319,14 @@ function initApp() {
 
   // 8. Apply stored locale and restore the session (or force login first)
   setLocale(currentLocale);
+  const demoSelect = document.getElementById('demoAccountSelect');
+  if (demoSelect) {
+    demoSelect.addEventListener('change', () => {
+      const submit = document.getElementById('demoAccountSubmit');
+      if (submit) submit.disabled = !demoSelect.value;
+    });
+    loadDemoAccounts();
+  }
   updateAccountUi();
   restoreSession();
 }
@@ -1081,9 +1095,8 @@ function closeAuthModal() {
 }
 
 function showAuthStep(stepNumber) {
-  document.getElementById('authStep1').style.display = stepNumber === 1 ? 'block' : 'none';
-  document.getElementById('authStep2').style.display = stepNumber === 2 ? 'block' : 'none';
-  document.getElementById('authStep3').style.display = stepNumber === 3 ? 'block' : 'none';
+  const step1 = document.getElementById('authStep1');
+  if (step1) step1.style.display = stepNumber === 1 ? 'block' : 'none';
 
   const titleEl = document.getElementById('authStepTitle');
   const subEl = document.getElementById('authStepSubtitle');
@@ -1102,16 +1115,35 @@ function showAuthStep(stepNumber) {
 
 // Step 1 — POST /api/auth/login: employee number + workbook password -> server session
 async function handleAuthSubmitStep1() {
-  const empNum = document.getElementById('authEmpNumber')?.value.trim();
-  const password = document.getElementById('authPin')?.value || '';
+  const selectionId = document.getElementById('demoAccountSelect')?.value;
+  if (!selectionId) return;
 
-  const res = await MockAPI.login(empNum, password);
+  const res = await MockAPI.demoLogin(selectionId);
   if (!res.ok) {
     showToast(t(res.error), 'error');
     return;
   }
 
   establishSession(res.data.session, res.data.employee);
+}
+
+async function loadDemoAccounts() {
+  const select = document.getElementById('demoAccountSelect');
+  if (!select) return;
+  const res = await MockAPI.demoAccounts();
+  if (!res.ok) {
+    const error = document.getElementById('demoAccountError');
+    if (error) error.style.display = 'block';
+    return;
+  }
+  select.querySelectorAll('option:not(:first-child)').forEach(option => option.remove());
+  res.data.accounts.forEach(account => {
+    const option = document.createElement('option');
+    option.value = account.selectionId;
+    option.textContent = t(account.labelKey);
+    option.dataset.i18n = account.labelKey;
+    select.appendChild(option);
+  });
 }
 
 function handleOtpInput(digitIndex, event) {

@@ -31,18 +31,14 @@ function workbookAccountFor(functionName) {
   for (const row of sheet.rows) {
     const employeeNumber = String(row[0] || '').trim().toUpperCase();
     const fn = String(row[1] || '').trim();
-    const password = String(row[2] || '').trim();
-    if (/^TZ\d{8}$/.test(employeeNumber) && fn === functionName) return { employeeNumber, password };
+    if (/^TZ\d{8}$/.test(employeeNumber) && fn === functionName) return { employeeNumber };
   }
   throw new Error(`No workbook account found for ${functionName}`);
 }
 
 async function main() {
-  const tech = workbookAccountFor('Farm Technician');
-  const admin = workbookAccountFor('Administrator');
-  const ops = workbookAccountFor('Administrative Manager');
   const { db } = await createSeededTestDb(WORKBOOK);
-  const { app } = createApp({ db, sessionSecret: 'test-session-secret-32-characters-minimum' });
+  const { app } = createApp({ db, sessionSecret: 'test-session-secret-32-characters-minimum', demoAccountSelectorEnabled: true });
   const server = await new Promise(resolve => {
     const s = app.listen(APP_PORT, '127.0.0.1', () => resolve(s));
   });
@@ -88,8 +84,7 @@ async function main() {
       return false;
     }
     async function loginAs(account) {
-      await ev(`document.getElementById('authEmpNumber').value = ${JSON.stringify(account.employeeNumber)}`);
-      await ev(`document.getElementById('authPin').value = ${JSON.stringify(account.password)}`);
+      await ev(`(async()=>{const r=await MockAPI.demoAccounts();const a=r.data.accounts.find(x=>x.labelKey===${JSON.stringify(account.labelKey)});const s=document.getElementById('demoAccountSelect');s.value=a.selectionId;s.dispatchEvent(new Event('change'));})()`);
       await ev('handleAuthSubmitStep1()');
       return waitFor(`document.body.classList.contains('authenticated')`);
     }
@@ -97,10 +92,10 @@ async function main() {
     await waitFor(`typeof AppState !== 'undefined'`);
     await sleep(500);
     check('login modal opened automatically', await ev(`document.getElementById('authModalBackdrop').classList.contains('open')`));
-    check('no plaintext password defaults in auth inputs', await ev(`!document.getElementById('authEmpNumber').value && !document.getElementById('authPin').value`));
+    check('selector has no password input or arbitrary role control', await ev(`!document.querySelector('input[type="password"]') && !document.querySelector('[name="role"]')`));
     check('app shell hidden before authentication', await ev(`!document.body.classList.contains('authenticated')`));
 
-    check('workbook technician login succeeds via server', await loginAs(tech));
+    check('selector technician login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_farm_technician' }));
     check('session role is farm_technician', await ev(`AppState.claims.role === 'farm_technician'`));
     check('URL is #/pt-MZ/dashboard/technician', await ev(`location.hash === '#/pt-MZ/dashboard/technician'`));
     check('technician sees only own fields', await ev(`document.querySelectorAll('#ftMyFieldsGrid > .card').length === 2`));
@@ -110,12 +105,27 @@ async function main() {
     await ev(`document.getElementById('openAuthModalBtn').click()`);
     await sleep(300);
     check('logout clears UI session', await ev(`!document.body.classList.contains('authenticated') && document.getElementById('authModalBackdrop').classList.contains('open')`));
-    check('admin login succeeds via workbook/server', await loginAs(admin));
+    check('selector administrator login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_administrator' }));
     check('URL is #/pt-MZ/dashboard/admin', await ev(`location.hash === '#/pt-MZ/dashboard/admin'`));
     await ev(`document.getElementById('openAuthModalBtn').click()`);
     await sleep(300);
-    check('admin_manager login succeeds via workbook/server', await loginAs(ops));
+    check('selector admin manager login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_admin_manager' }));
     check('URL is #/pt-MZ/dashboard/ops', await ev(`location.hash === '#/pt-MZ/dashboard/ops'`));
+    for (const locale of ['pt-MZ', 'en-GB', 'zh-TW']) {
+      await ev(`setLocale(${JSON.stringify(locale)})`);
+      check(`${locale} selector exposes six translated labels`, await ev(`document.querySelectorAll('#demoAccountSelect option').length === 7 && [...document.querySelectorAll('#demoAccountSelect option')].slice(1).every(o => o.textContent.trim() && o.textContent !== o.dataset.i18n)`));
+    }
+    const remaining = [
+      ['auth.demo.option_top_management', 'top_management', '#/pt-MZ/dashboard/management'],
+      ['auth.demo.option_production_manager', 'production_manager', '#/pt-MZ/dashboard/production'],
+      ['auth.demo.option_driver', 'driver', '#/pt-MZ/dashboard/entry']
+    ];
+    for (const [labelKey, role, route] of remaining) {
+      await ev(`document.getElementById('openAuthModalBtn').click()`); await sleep(200);
+      await ev(`setLocale('pt-MZ')`);
+      check(`${role} selector login succeeds`, await loginAs({ labelKey }));
+      check(`${role} claim and route are server-derived`, await ev(`AppState.claims.role === ${JSON.stringify(role)} && location.hash === ${JSON.stringify(route)}`));
+    }
   } finally {
     chrome.kill();
     await new Promise(resolve => server.close(resolve));

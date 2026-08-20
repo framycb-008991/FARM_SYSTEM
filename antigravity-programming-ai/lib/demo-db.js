@@ -132,6 +132,12 @@ function createDatabase(options = {}) {
       const res = await query('SELECT * FROM demo_accounts WHERE employee_number = $1', [String(employeeNumber || '').toUpperCase()]);
       return publicAccount(res.rows[0]);
     },
+    async findAccountsByRoles(roles) {
+      const required = Array.isArray(roles) ? roles : [];
+      if (!required.length) return [];
+      const res = await query('SELECT * FROM demo_accounts WHERE role = ANY($1::text[]) ORDER BY employee_number', [required]);
+      return res.rows.map(publicAccount);
+    },
     async countAccounts() {
       const res = await query('SELECT COUNT(*)::int AS count FROM demo_accounts');
       return Number(res.rows[0].count);

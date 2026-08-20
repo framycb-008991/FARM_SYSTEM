@@ -171,6 +171,17 @@
     return authFetch('/api/auth/logout', { method: 'POST' });
   }
 
+  async function getDemoAccounts() {
+    return authFetch('/api/demo/accounts');
+  }
+
+  async function demoLogin(selectionId) {
+    return authFetch('/api/auth/demo-login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectionId })
+    });
+  }
+
   // Returns { ok: true, claims } or { ok: false, status: 401, error }.
   // Existing MockAPI functions still accept a first `token` argument, but it is
   // now a non-secret public claims object derived from the server session.
@@ -791,6 +802,14 @@
           mustSetPin: false
         }
       };
+    },
+
+    async demoAccounts() { return getDemoAccounts(); },
+
+    async demoLogin(selectionId) {
+      const res = await demoLogin(selectionId);
+      if (!res.ok) return res;
+      return { ok: true, status: 200, data: { employee: res.data.employee, session: res.data.session } };
     },
 
     // Kept only so stale callers fail closed. The workbook has no phone numbers,

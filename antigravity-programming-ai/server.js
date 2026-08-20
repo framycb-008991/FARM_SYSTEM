@@ -14,6 +14,14 @@ const SESSION_COOKIE = 'mecuzi_demo_session';
 const SESSION_TTL_MS = 15 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const DEMO_SELECTOR_ROLES = [
+  { role: 'top_management', labelKey: 'auth.demo.option_top_management' },
+  { role: 'farm_technician', labelKey: 'auth.demo.option_farm_technician' },
+  { role: 'production_manager', labelKey: 'auth.demo.option_production_manager' },
+  { role: 'administrator', labelKey: 'auth.demo.option_administrator' },
+  { role: 'admin_manager', labelKey: 'auth.demo.option_admin_manager' },
+  { role: 'driver', labelKey: 'auth.demo.option_driver' }
+];
 
 function requireSecret(name, override) {
   const value = override || process.env[name];
@@ -104,6 +112,41 @@ function noStore(res) {
   res.set('Cache-Control', 'no-store');
 }
 
+function selectorId(sessionSecret, employeeNumber) {
+  return crypto.createHmac('sha256', sessionSecret)
+    .update(`demo-selector:v1:${employeeNumber}`)
+    .digest('base64url');
+}
+
+async function validatedDemoAccounts(db) {
+  const accounts = await db.findAccountsByRoles(DEMO_SELECTOR_ROLES.map(item => item.role));
+  const byRole = new Map();
+  for (const account of accounts) {
+    if (!byRole.has(account.role)) byRole.set(account.role, []);
+    byRole.get(account.role).push(account);
+  }
+  const selected = [];
+  for (const item of DEMO_SELECTOR_ROLES) {
+    const matches = (byRole.get(item.role) || []).filter(account => account.status === 'active');
+    if (matches.length !== 1 || (byRole.get(item.role) || []).length !== 1) {
+      const error = new Error(`Demo selector cardinality is invalid for ${item.role}`);
+      error.code = 'DEMO_SELECTOR_UNAVAILABLE';
+      throw error;
+    }
+    selected.push({ account: matches[0], labelKey: item.labelKey });
+  }
+  return selected;
+}
+
+async function createServerSession(db, res, account) {
+  await db.pruneExpiredSessions();
+  const sid = crypto.randomBytes(32).toString('base64url');
+  const now = new Date();
+  const session = await db.createSession(sid, account, new Date(now.getTime() + SESSION_TTL_MS), now);
+  setSessionCookie(res, sid);
+  return session;
+}
+
 function createApp(options = {}) {
   const sessionSecret = requireSecret('SESSION_SECRET', options.sessionSecret);
   const db = options.db || createDatabase(options.dbOptions || {});
@@ -137,13 +180,52 @@ function createApp(options = {}) {
       }
 
       rateLimit.clear(req, employeeNumber);
-      await db.pruneExpiredSessions();
-      const sid = crypto.randomBytes(32).toString('base64url');
-      const now = new Date();
-      const session = await db.createSession(sid, account, new Date(now.getTime() + SESSION_TTL_MS), now);
-      setSessionCookie(res, sid);
+      const session = await createServerSession(db, res, account);
       return res.status(200).json({ ok: true, employee: publicEmployee(account), session: publicEmployee(session) });
     } catch (err) {
+      return next(err);
+    }
+  });
+
+  app.get('/api/demo/accounts', async (req, res, next) => {
+    try {
+      noStore(res);
+      if (process.env.DEMO_ACCOUNT_SELECTOR_ENABLED !== 'true' && options.demoAccountSelectorEnabled !== true) {
+        return res.status(404).json({ ok: false, error: 'auth.demo.unavailable' });
+      }
+      const accounts = await validatedDemoAccounts(db);
+      return res.status(200).json({ ok: true, accounts: accounts.map(item => ({
+        selectionId: selectorId(sessionSecret, item.account.employeeNumber),
+        labelKey: item.labelKey
+      })) });
+    } catch (err) {
+      if (err.code === 'DEMO_SELECTOR_UNAVAILABLE') return res.status(503).json({ ok: false, error: 'auth.demo.unavailable' });
+      return next(err);
+    }
+  });
+
+  app.post('/api/auth/demo-login', async (req, res, next) => {
+    try {
+      noStore(res);
+      if (process.env.DEMO_ACCOUNT_SELECTOR_ENABLED !== 'true' && options.demoAccountSelectorEnabled !== true) {
+        return res.status(404).json({ ok: false, error: 'auth.demo.unavailable' });
+      }
+      const selectionId = typeof req.body.selectionId === 'string' ? req.body.selectionId : '';
+      const accounts = await validatedDemoAccounts(db);
+      const selected = accounts.find(item => {
+        const expected = Buffer.from(selectorId(sessionSecret, item.account.employeeNumber));
+        const actual = Buffer.from(selectionId);
+        return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+      });
+      if (!selected) return res.status(401).json({ ok: false, error: 'auth.demo.invalid' });
+      const account = await db.findAccount(selected.account.employeeNumber);
+      if (!account || account.status !== 'active' || account.role !== selected.account.role) {
+        return res.status(401).json({ ok: false, error: 'auth.demo.invalid' });
+      }
+      const session = await createServerSession(db, res, account);
+      return res.status(200).json({ ok: true, employee: publicEmployee(account), session: publicEmployee(session) });
+    } catch (err) {
+      if (err.code === 'DEMO_SELECTOR_UNAVAILABLE') return res.status(503).json({ ok: false, error: 'auth.demo.unavailable' });
       return next(err);
     }
   });
