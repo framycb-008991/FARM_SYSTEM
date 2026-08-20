@@ -2369,6 +2369,21 @@ Object.assign(I18N_DICTIONARY['zh-TW'], {
   'access.limited': '有限存取',
   'access.limited_desc': '僅限管理與稽核'
 });
+Object.assign(I18N_DICTIONARY['pt-MZ'], {
+  'tm.export_csv_success': 'Base estruturada descarregada.',
+  'tm.export_pdf_success': 'Dossiê mensal descarregado.',
+  'tm.export_council_success': 'Pacote para o Conselho descarregado.'
+});
+Object.assign(I18N_DICTIONARY['en-GB'], {
+  'tm.export_csv_success': 'Structured ledger downloaded.',
+  'tm.export_pdf_success': 'Monthly dossier downloaded.',
+  'tm.export_council_success': 'Council briefing pack downloaded.'
+});
+Object.assign(I18N_DICTIONARY['zh-TW'], {
+  'tm.export_csv_success': '結構化總帳已下載。',
+  'tm.export_pdf_success': '月度總結報告已下載。',
+  'tm.export_council_success': '理事會簡報已下載。'
+});
 
 let currentLocale = localStorage.getItem('preferred_locale') || 'pt-MZ';
 

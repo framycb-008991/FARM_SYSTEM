@@ -1749,6 +1749,18 @@ function downloadExcel(filename, html) {
   URL.revokeObjectURL(a.href);
 }
 
+function downloadBlob(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // Export one ops sub-view table (spec §4–§6) — .xls, current locale.
 // Sensitive entities (wellbeing_note) get NO export button (§6.1.3, §10).
 function exportOpsTable(entity) {
@@ -1876,14 +1888,65 @@ function exportOpsReport(fmt) {
 }
 
 /* ==========================================================================
-   Exports Simulation
+   Top Management exports
    ========================================================================== */
+function csvCell(value) {
+  return `"${String(value == null ? '' : value).replace(/"/g, '""')}"`;
+}
+
 function exportCSVReport() {
-  showToast(t('tm.btn_export_csv') + ' (yield_ledger_2026.csv)...', 'navy');
+  const headers = [t('tm.th_period'), t('tm.th_caju_kg'), t('tm.th_feijao_kg'), t('tm.th_target_kg'), t('tm.th_total_value'), t('tm.th_performance')];
+  const rows = MECUZI_DATA.yieldData.map(y => {
+    const totalKg = y.cajuKg + y.feijaoKg;
+    return [t(y.periodKey), y.cajuKg, y.feijaoKg, y.targetKg, `${y.totalValueMzn} MZN`, `${((totalKg / y.targetKg) * 100).toFixed(0)}%`];
+  });
+  const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+  downloadBlob(`yield_ledger_2026_${currentLocale}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  showToast(t('tm.export_csv_success'), 'success');
+}
+
+function buildSimplePdf(lines) {
+  const safeLines = lines.map(line => String(line).replace(/[^\x20-\x7E]/g, '?').replace(/[()\\]/g, ch => `\\${ch}`));
+  const stream = ['BT', '/F1 12 Tf', '50 780 Td', ...safeLines.flatMap((line, index) => [index ? '0 -18 Td' : '', `(${line}) Tj`]), 'ET'].filter(Boolean).join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets[index + 1] = new TextEncoder().encode(pdf).length;
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return pdf;
 }
 
 function exportPDFReport() {
-  showToast(t('tm.btn_export_pdf') + ' (.PDF)...', 'navy');
+  const lines = [t('tm.btn_download_dossier'), 'Mecuzi Farm Management', `Locale: ${currentLocale}`, ''];
+  MECUZI_DATA.yieldData.forEach(y => {
+    const totalKg = y.cajuKg + y.feijaoKg;
+    lines.push(`${t(y.periodKey)} | ${totalKg} kg / ${y.targetKg} kg | ${((totalKg / y.targetKg) * 100).toFixed(0)}%`);
+  });
+  downloadBlob(`monthly_dossier_2026_${currentLocale}.pdf`, buildSimplePdf(lines), 'application/pdf');
+  showToast(t('tm.export_pdf_success'), 'success');
+}
+
+function exportCouncilBriefing() {
+  const esc = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const rows = MECUZI_DATA.yieldData.map(y => {
+    const totalKg = y.cajuKg + y.feijaoKg;
+    return `<tr><td>${esc(t(y.periodKey))}</td><td>${totalKg.toLocaleString('zh-TW')} kg</td><td>${y.targetKg.toLocaleString('zh-TW')} kg</td><td>${((totalKg / y.targetKg) * 100).toFixed(0)}%</td></tr>`;
+  }).join('');
+  const html = `<!doctype html><html lang="zh-TW"><head><meta charset="UTF-8"><title>理事會簡報</title><style>body{font-family:Arial,"Noto Sans TC",sans-serif;color:#17320f;margin:40px}h1{color:#0D3600}table{border-collapse:collapse;width:100%}th,td{border:1px solid #dbe4d7;padding:10px;text-align:left}th{background:#eef5eb}</style></head><body><h1>理事會簡報</h1><p>梅庫齊農場管理系統 — 2026</p><table><thead><tr><th>期間</th><th>實際產量</th><th>目標</th><th>達成率</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  downloadBlob(`council_briefing_zh-TW_2026.html`, html, 'text/html;charset=utf-8');
+  showToast(t('tm.export_council_success'), 'success');
 }
 
 /* ==========================================================================
@@ -2343,6 +2406,7 @@ window.handleAuthSubmitStep1 = handleAuthSubmitStep1;
 // silently aborted every export below them)
 window.exportCSVReport = exportCSVReport;
 window.exportPDFReport = exportPDFReport;
+window.exportCouncilBriefing = exportCouncilBriefing;
 window.openCopilot = openCopilot;
 window.closeCopilot = closeCopilot;
 window.sendCopilotPrompt = sendCopilotPrompt;
