@@ -2022,6 +2022,69 @@ function exportCouncilBriefing() {
 /* ==========================================================================
    Copilot AI Drawer
    ========================================================================== */
+function buildTraditionalChinesePdf(lines) {
+  const wrapped = [];
+  lines.forEach(line => {
+    const text = String(line);
+    if (!text) { wrapped.push(''); return; }
+    for (let i = 0; i < text.length; i += 42) wrapped.push(text.slice(i, i + 42));
+  });
+  const pages = [];
+  for (let i = 0; i < wrapped.length; i += 31) pages.push(wrapped.slice(i, i + 31));
+  if (!pages.length) pages.push([]);
+  const objects = [null, null];
+  const contentIds = [];
+  const pageIds = [];
+  const utf16Hex = text => {
+    let hex = 'FEFF';
+    for (let i = 0; i < text.length; i++) hex += text.charCodeAt(i).toString(16).padStart(4, '0').toUpperCase();
+    return `<${hex}>`;
+  };
+  pages.forEach(page => {
+    const stream = ['BT', '/F1 11 Tf', '50 755 Td', ...page.flatMap((line, index) => [index ? '0 -22 Td' : '', `${utf16Hex(line)} Tj`]), 'ET'].filter(Boolean).join('\n');
+    contentIds.push(objects.length + 1);
+    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
+  pages.forEach((page, index) => {
+    pageIds.push(objects.length + 1);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${objects.length + pages.length + 1} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`);
+  });
+  const type0Id = objects.length + 1;
+  const cidId = type0Id + 1;
+  objects.push(`<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniCNS-UTF16-H /DescendantFonts [${cidId} 0 R] >>`);
+  objects.push('<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (CNS1) /Supplement 0 >> >>');
+  objects[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objects[1] = `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => { offsets[index + 1] = new TextEncoder().encode(pdf).length; pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const xref = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  return `${pdf}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+}
+
+function exportCouncilBriefingPdf() {
+  const rows = MECUZI_DATA.yieldData;
+  const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
+  const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
+  const valueMzn = rows.reduce((sum, row) => sum + row.totalValueMzn, 0);
+  const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月'];
+  const fmt = value => Number(value).toLocaleString('zh-TW');
+  const lines = ['董事會簡報', '梅庫齊農場管理系統 — 2026 年生產摘要', '', '投資者重點',
+    `累計實際產量：${fmt(totalKg / 1000)} 噸`, `累計生產目標：${fmt(targetKg / 1000)} 噸`,
+    `目標達成率：${(totalKg / targetKg * 100).toFixed(1)}%`, `已記錄生產價值：MZN ${fmt(valueMzn)}`, '', '每月生產表現',
+    '月份　　實際產量　　目標　　達成率　　已記錄價值', ...rows.map((row, index) => {
+      const output = row.cajuKg + row.feijaoKg;
+      return `${monthNames[index] || `期間 ${index + 1}`}　${fmt(output / 1000)} 噸　${fmt(row.targetKg / 1000)} 噸　${(output / row.targetKg * 100).toFixed(0)}%　MZN ${fmt(row.totalValueMzn)}`;
+    }), '', '管理層觀察', `產量較計劃高出 ${fmt((totalKg - targetKg) / 1000)} 噸，顯示本期生產執行力高於計劃。`,
+    '腰果是主要產量來源；豆類提供多元化的補充產出。', '管理層應在下一個收成窗口前確認乾燥、運輸及現場防護安排。', '', '風險與治理',
+    '系統目前記錄火災、收成窗口強降雨及強風等未解決的關鍵營運警報。',
+    '本簡報使用系統記錄的生產資料；已記錄生產價值不等同於經審計收入或利潤。投資者審查應核對價格、成本、庫存及銷售合約。'];
+  downloadBlob('council_briefing_zh-TW_2026.pdf', buildTraditionalChinesePdf(lines), 'application/pdf');
+  showToast(t('tm.export_council_success'), 'success');
+}
+
 function openCopilot() {
   document.getElementById('copilotOverlay')?.classList.add('open');
   document.getElementById('copilotDrawer')?.classList.add('open');
@@ -2477,6 +2540,7 @@ window.handleAuthSubmitStep1 = handleAuthSubmitStep1;
 window.exportCSVReport = exportCSVReport;
 window.exportPDFReport = exportPDFReport;
 window.exportCouncilBriefing = exportCouncilBriefing;
+window.exportCouncilBriefingPdf = exportCouncilBriefingPdf;
 window.openCopilot = openCopilot;
 window.closeCopilot = closeCopilot;
 window.sendCopilotPrompt = sendCopilotPrompt;
