@@ -256,11 +256,12 @@
   // Technician + the 4 Operational Data Entry roles.
   const FIRE_REPORT_ROLES = ['farm_technician', 'driver', 'warehouse_assistant', 'cook', 'cleaning_assistant'];
 
-  // Per-field climate alert visibility (§7). Top Management is deliberately
-  // excluded here — it gets the aggregated org-wide summary endpoint only.
-  const CLIMATE_ALERT_READ_ROLES = ['farm_technician', 'production_manager', 'administrator',
-    'admin_manager', 'finance_compliance_lead', 'operations_support_lead', 'hr_facility_lead',
-    'driver', 'warehouse_assistant', 'cook', 'cleaning_assistant'];
+  // Field-level climate alert visibility (§7). Least privilege is deliberate:
+  // operational responders see actionable alerts; executives/administrators
+  // use the aggregate summary endpoint; entry roles may report fires but do
+  // not receive the global alert feed.
+  const CLIMATE_ALERT_READ_ROLES = ['farm_technician', 'production_manager',
+    'admin_manager', 'operations_support_lead'];
 
   const CLIMATE_ACK_ROLES = ['farm_technician', 'production_manager', 'administrator', 'admin_manager'];
   const CLIMATE_THRESHOLD_ROLES = ['administrator', 'admin_manager']; // §5/§7: Settings editors
@@ -1166,8 +1167,8 @@
       return { ok: true, status: 200, data: withContext };
     },
 
-    // GET /climate/summary — Top Management: aggregated org-wide climate/fire
-    // risk summary ONLY, no per-field detail (§7).
+    // GET /climate/summary — aggregate-only climate/fire risk summary (§7).
+    // Top Management and Administrator never receive per-field rows.
     async getClimateOrgSummary(token) {
       const auth = await requireRole(token, ['top_management', 'administrator']);
       if (!auth.ok) return auth;

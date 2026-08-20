@@ -59,6 +59,8 @@ async function main() {
     CopilotPrompts.detectLanguage('Qual é o procedimento para o furo com consumo acima de 120%?') === 'pt');
   check('EN detected from English payload',
     CopilotPrompts.detectLanguage('What is the procedure when a borehole exceeds 120%?') === 'en');
+  check('ordinary English request does not fall through to Portuguese default',
+    CopilotPrompts.detectLanguage('Can you give me a summary of the current production data?') === 'en');
   check('ZH detected from Chinese payload',
     CopilotPrompts.detectLanguage('水井讀數超過120%時應該怎麼辦？') === 'zh');
   check('detection ignores UI locale entirely (pure payload function)',

@@ -51,6 +51,8 @@ async function main() {
   const tokOpsLead = claims('TZ13000003', 'Operations Support Lead', 'operations_support_lead');
   const tokDriver = claims('TZ13000005', 'Driver', 'driver');
   const tokCook = claims('TZ13000007', 'Cook', 'cook');
+  const tokFinance = claims('TZ13000002', 'Finance Compliance Lead', 'finance_compliance_lead');
+  const tokHr = claims('TZ13000004', 'HR Facility Lead', 'hr_facility_lead');
 
   console.log('\n=== 1. Data model (§3/§3a) ===');
   check('WeatherReading, FireHotspot, FireDangerReading, ClimateAlert, ClimateAlertThreshold collections exist',
@@ -195,6 +197,20 @@ async function main() {
   check('Top Management gets org-wide aggregated summary (counts, no per-field rows)',
     tmSummary.ok && typeof tmSummary.data.bySeverity.critical === 'number' &&
     !Array.isArray(tmSummary.data.alerts));
+  const adminList = await MockAPI.listClimateAlerts(tokAdmin);
+  check('Administrator per-field alert list: 403 (aggregate only)', !adminList.ok && adminList.status === 403);
+  const adminSummary = await MockAPI.getClimateOrgSummary(tokAdmin);
+  check('Administrator gets aggregate climate summary', adminSummary.ok && typeof adminSummary.data.bySeverity.critical === 'number');
+  const adminMgrList = await MockAPI.listClimateAlerts(tokAdminMgr);
+  check('Admin Manager sees field-level alerts for cross-unit coordination', adminMgrList.ok && adminMgrList.data.some(a => a.fieldId === 'FLD-04'));
+  const financeList = await MockAPI.listClimateAlerts(tokFinance);
+  const hrList = await MockAPI.listClimateAlerts(tokHr);
+  check('Finance and HR leads cannot access global climate alerts',
+    !financeList.ok && financeList.status === 403 && !hrList.ok && hrList.status === 403);
+  const driverList = await MockAPI.listClimateAlerts(tokDriver);
+  const cookList = await MockAPI.listClimateAlerts(tokCook);
+  check('Entry roles can report fires but cannot access global climate alerts',
+    !driverList.ok && driverList.status === 403 && !cookList.ok && cookList.status === 403);
   const corr = await MockAPI.getRainfallBoreholeCorrelation(tokOpsLead);
   check('Operations Support gets rainfall-vs-borehole correlation',
     corr.ok && corr.data.length === 3 && corr.data.every(r => 'recentRainMm' in r && 'statusKey' in r));

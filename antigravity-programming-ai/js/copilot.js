@@ -192,6 +192,15 @@
     const EN = new Set(['the', 'what', 'which', 'how', 'when', 'where', 'with', 'without',
       'show', 'tell', 'budget', 'fire', 'smoke', 'rain', 'report', 'reports', 'sync',
       'field', 'borehole', 'please', 'should', 'does', 'status', 'procedure', 'variance']);
+    // Keep detection independent from the selected UI locale. The original
+    // vocabulary was too narrow, so ordinary English requests with no exact
+    // keyword fell through to the Portuguese default.
+    ['can', 'could', 'would', 'will', 'give', 'me', 'my', 'your', 'you', 'explain',
+      'summary', 'current', 'production', 'data', 'available', 'is', 'are', 'do',
+      'why', 'need', 'want', 'help', 'work', 'works', 'working', 'list', 'provide',
+      'and', 'or', 'this', 'that', 'from', 'to', 'of', 'in', 'on', 'about', 'risk',
+      'output'].forEach(word => EN.add(word));
+    ['quem', 'ganhou', 'isso', 'isto', 'sobre', 'dados', 'risco', 'resumo'].forEach(word => PT.add(word));
     let pt = 0, en = 0;
     words.forEach(w => { if (PT.has(w)) pt++; if (EN.has(w)) en++; });
     return en > pt ? 'en' : 'pt'; // default: system primary language (pt-MZ)

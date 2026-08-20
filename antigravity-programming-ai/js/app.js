@@ -2236,6 +2236,7 @@ function showToast(message, type = 'info') {
    banner — same chips, same cards, same click-to-expand. No separate widget.
    ========================================================================== */
 const CLIMATE_ACK_ROLES_UI = ['farm_technician', 'production_manager', 'administrator', 'admin_manager'];
+const CLIMATE_FIELD_ALERT_ROLES_UI = ['farm_technician', 'production_manager', 'admin_manager', 'operations_support_lead'];
 
 function climateAlertsCacheKey() {
   const sub = AppState.claims ? AppState.claims.sub : 'anon';
@@ -2305,8 +2306,26 @@ async function renderClimateAlerts() {
         ticker.appendChild(chip);
       }
       if (badge) badge.textContent = `${baseCount + s.bySeverity.critical} ${badgeWord}`;
-      renderTmClimateSummary(s);
+      renderClimateOrgSummary(s, 'tmClimateSummary');
     }
+    return;
+  }
+
+  // Administrator receives aggregate risk counts only; threshold editing is
+  // handled separately in Settings and never requires field-level exposure.
+  if (role === 'administrator') {
+    const res = await MockAPI.getClimateOrgSummary(AppState.accessToken);
+    if (res.ok) renderClimateOrgSummary(res.data, 'admClimateSummary');
+    AppState.visibleClimateAlerts = [];
+    if (badge && res.ok) badge.textContent = `${baseCount + res.data.bySeverity.critical} ${badgeWord}`;
+    return;
+  }
+
+  // Finance, HR, and entry roles may have other reporting workflows but do
+  // not receive the global climate/fire alert feed.
+  if (!CLIMATE_FIELD_ALERT_ROLES_UI.includes(role)) {
+    AppState.visibleClimateAlerts = [];
+    if (badge) badge.textContent = `${baseCount} ${badgeWord}`;
     return;
   }
 
@@ -2387,9 +2406,9 @@ async function acknowledgeClimateAlert(alertId) {
   renderClimateAlerts();
 }
 
-// Top Management org-wide aggregate card (§7) — counts only, no field detail
-function renderTmClimateSummary(s) {
-  const el = document.getElementById('tmClimateSummary');
+// Aggregate org-wide climate/fire card (§7) — counts only, no field detail.
+function renderClimateOrgSummary(s, elementId) {
+  const el = document.getElementById(elementId);
   if (!el) return;
   el.innerHTML = `
     <div class="card">
