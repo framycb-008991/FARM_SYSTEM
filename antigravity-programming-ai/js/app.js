@@ -280,6 +280,8 @@ function initApp() {
       showToast(t('app.title') + ' — ' + e.target.selectedOptions[0].text, 'success');
     });
   }
+  document.getElementById('investorScenarioCase')?.addEventListener('change', renderInvestorScenario);
+  document.getElementById('investorPriceAdjustment')?.addEventListener('input', renderInvestorScenario);
 
   // 2. Register global locale change hook (I18N_SPEC.md §1 & §10)
   window.onLocaleChange = (newLocale) => {
@@ -605,6 +607,7 @@ function switchTab(tabId) {
    ========================================================================== */
 function renderDataForRole(roleKey) {
   if (roleKey === 'top_management') {
+    renderInvestorOverview();
     renderTmOverviewTable();
     renderTmYieldTable();
     renderTmFieldsGrid();
@@ -630,6 +633,62 @@ function renderDataForRole(roleKey) {
 }
 
 /* --- 1. Top Management Renderers --- */
+function investorMetrics() {
+  const rows = Array.isArray(MECUZI_DATA.yieldData) ? MECUZI_DATA.yieldData : [];
+  const outputKg = rows.reduce((sum, row) => sum + Number(row.cajuKg || 0) + Number(row.feijaoKg || 0), 0);
+  const targetKg = rows.reduce((sum, row) => sum + Number(row.targetKg || 0), 0);
+  const recordedValue = rows.reduce((sum, row) => sum + Number(row.totalValueMzn || 0), 0);
+  const recordedCosts = (MECUZI_DATA.opsCostEntries || []).reduce((sum, row) => sum + Number(row.totalMzn || 0), 0);
+  const fields = MECUZI_DATA.fields || [];
+  return { rows, outputKg, targetKg, recordedValue, recordedCosts, fields, areaHa: fields.reduce((s, f) => s + Number(f.areaHa || 0), 0), cajuKg: rows.reduce((s, r) => s + Number(r.cajuKg || 0), 0), feijaoKg: rows.reduce((s, r) => s + Number(r.feijaoKg || 0), 0) };
+}
+
+function investorKpi(label, value, note, status = 'recorded') {
+  return `<article class="investor-kpi"><span class="kpi-label">${label}</span><strong>${value}</strong><span class="kpi-note"><i class="status-dot ${status}"></i>${note}</span></article>`;
+}
+
+function renderInvestorOverview() {
+  const kpiEl = document.getElementById('investorKpis');
+  if (!kpiEl) return;
+  const m = investorMetrics();
+  const attainment = m.targetKg ? m.outputKg / m.targetKg * 100 : null;
+  const variance = m.outputKg - m.targetKg;
+  const alerts = (MECUZI_DATA.climateAlerts || []).filter(a => a.severity === 'critical' && !a.resolvedAt);
+  const money = value => `MZN ${Number(value).toLocaleString('en-GB')}`;
+  const unavailable = t('investor.unavailable');
+  kpiEl.innerHTML = [
+    investorKpi(t('investor.kpi_output'), `${(m.outputKg / 1000).toFixed(1)} t`, t('investor.recorded_ledger'), 'recorded'),
+    investorKpi(t('investor.kpi_attainment'), attainment == null ? unavailable : `${attainment.toFixed(1)}%`, t('investor.calculated_demo'), 'calculated'),
+    investorKpi(t('investor.kpi_variance'), `${variance >= 0 ? '+' : ''}${(variance / 1000).toFixed(1)} t`, t('investor.calculated_demo'), 'calculated'),
+    investorKpi(t('investor.kpi_value'), money(m.recordedValue), t('investor.recorded_value_note'), 'recorded'),
+    investorKpi(t('investor.kpi_footprint'), `${m.fields.length} · ${m.areaHa.toFixed(0)} ha`, t('investor.recorded_fields'), 'recorded'),
+    investorKpi(t('investor.kpi_alerts'), String(alerts.length), t('investor.critical_alerts_note'), alerts.length ? 'warning' : 'recorded')
+  ].join('');
+  const max = Math.max(...m.rows.map(r => Number(r.cajuKg || 0) + Number(r.feijaoKg || 0)), 1);
+  const targetMax = Math.max(...m.rows.map(r => Number(r.targetKg || 0)), 1);
+  const chart = document.getElementById('investorTrendChart');
+  if (chart) chart.innerHTML = m.rows.map(row => { const actual = Number(row.cajuKg || 0) + Number(row.feijaoKg || 0); return `<div class="chart-column"><div class="bar-pair"><span class="bar actual-bar" style="height:${Math.max(8, actual / max * 100)}%" title="${actual.toLocaleString()} kg"></span><span class="bar target-bar" style="height:${Math.max(8, Number(row.targetKg || 0) / targetMax * 100)}%" title="${Number(row.targetKg || 0).toLocaleString()} kg"></span></div><span>${t(row.periodKey).split(' ')[0]}</span></div>`; }).join('');
+  const mix = document.getElementById('investorMix');
+  if (mix) mix.innerHTML = [['investor.cashew', m.cajuKg], ['investor.beans', m.feijaoKg]].map(([key, value]) => `<div class="mix-row"><div><span>${t(key)}</span><strong>${(value / 1000).toFixed(1)} t</strong></div><div class="mix-track"><span style="width:${m.outputKg ? value / m.outputKg * 100 : 0}%"></span></div><small>${m.outputKg ? (value / m.outputKg * 100).toFixed(1) : '0.0'}%</small></div>`).join('');
+  const takeaways = document.getElementById('investorTakeaways');
+  if (takeaways) takeaways.innerHTML = [`${t('investor.takeaway_output')} <strong>${attainment == null ? unavailable : attainment.toFixed(1) + '%'}</strong>`, `${t('investor.takeaway_value')} <strong>${money(m.recordedValue)}</strong>`, `${t('investor.takeaway_cost')} <strong>${money(m.recordedCosts)}</strong>`].map(x => `<p>${x}</p>`).join('');
+  const quality = document.getElementById('investorQuality');
+  if (quality) { const batches = MECUZI_DATA.opsPostharvestBatches || []; const complete = batches.filter(b => String(b.status).includes('concluido')).length; quality.innerHTML = `<div class="compact-stat"><strong>${batches.length}</strong><span>${t('investor.batches_recorded')}</span></div><div class="compact-stat"><strong>${complete}/${batches.length || 0}</strong><span>${t('investor.batches_completed')}</span></div><small>${t('investor.quality_unavailable')}</small>`; }
+  const impact = document.getElementById('investorImpact');
+  if (impact) impact.innerHTML = `<div class="compact-stat"><strong>${m.areaHa.toFixed(0)} ha</strong><span>${t('investor.active_hectares')}</span></div><div class="compact-stat"><strong>${m.fields.length}</strong><span>${t('investor.active_fields')}</span></div><small>${t('investor.impact_scope')}</small>`;
+  const risk = document.getElementById('investorRisk');
+  if (risk) risk.innerHTML = alerts.slice(0, 4).map(a => { const field = m.fields.find(f => f.id === a.fieldId); return `<div class="risk-row"><span class="risk-severity">${t('investor.critical')}</span><div><strong>${field ? t(field.nameKey) : a.fieldId}</strong><small>${t(a.messageKey, t('investor.risk_recorded'))}</small></div></div>`; }).join('') || `<small>${t('investor.no_critical_alerts')}</small>`;
+  const prov = document.getElementById('investorProvenance');
+  if (prov) prov.innerHTML = `<p><strong>${t('investor.source_dataset')}:</strong> ${t('investor.source_dataset_value')}</p><p><strong>${t('investor.calculation')}:</strong> ${t('investor.calculation_value')}</p><p><strong>${t('investor.reporting_period')}:</strong> ${m.rows.length ? `${t(m.rows[0].periodKey)} – ${t(m.rows[m.rows.length - 1].periodKey)}` : unavailable}</p><p><strong>${t('investor.review_status')}:</strong> Demo / Recorded / Pending validation · ${new Date().toLocaleString(currentLocale)}</p>`;
+  renderInvestorScenario();
+}
+
+function renderInvestorScenario() {
+  const result = document.getElementById('investorScenarioResult'); const select = document.getElementById('investorScenarioCase'); const price = document.getElementById('investorPriceAdjustment'); const output = document.getElementById('investorPriceValue');
+  if (!result || !select || !price) return;
+  const m = investorMetrics(); const factor = select.value === 'higher' ? 1.15 : select.value === 'lower' ? 0.85 : 1; const priceFactor = 1 + Number(price.value) / 100; if (output) output.value = `${price.value}%`;
+  result.innerHTML = `<strong>${((m.outputKg * factor) / 1000).toFixed(1)} t</strong><span>${t('investor.scenario_output')}</span><strong>MZN ${(m.recordedValue * factor * priceFactor).toLocaleString('en-GB')}</strong><span>${t('investor.scenario_value')}</span><small>${t('investor.scenario_disclaimer')}</small>`;
+}
 function renderTmOverviewTable() {
   const tbody = document.getElementById('tmOverviewTableBody');
   if (!tbody) return;
@@ -1895,10 +1954,10 @@ function csvCell(value) {
 }
 
 function exportCSVReport() {
-  const headers = [t('tm.th_period'), t('tm.th_caju_kg'), t('tm.th_feijao_kg'), t('tm.th_target_kg'), t('tm.th_total_value'), t('tm.th_performance')];
+  const headers = ['period', 'cashew_kg', 'beans_kg', 'total_kg', 'target_kg', 'attainment_pct', 'recorded_value_mzn', 'record_status'];
   const rows = MECUZI_DATA.yieldData.map(y => {
     const totalKg = y.cajuKg + y.feijaoKg;
-    return [t(y.periodKey), y.cajuKg, y.feijaoKg, y.targetKg, `${y.totalValueMzn} MZN`, `${((totalKg / y.targetKg) * 100).toFixed(0)}%`];
+    return [t(y.periodKey), y.cajuKg, y.feijaoKg, totalKg, y.targetKg, (totalKg / y.targetKg * 100).toFixed(2), y.totalValueMzn, 'recorded_pending_validation'];
   });
   const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
   downloadBlob(`yield_ledger_2026_${currentLocale}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
@@ -1969,8 +2028,8 @@ function exportPDFReport() {
   const fmt = value => Number(value).toLocaleString('en-GB');
   const money = value => `MZN ${fmt(value)}`;
   const lines = [
-    'INVESTOR PRODUCTION BRIEFING',
-    'Mecuzi Farm Management | Management presentation draft | 2026 YTD',
+    'MONTHLY PRODUCTION DOSSIER',
+    'Mecuzi Farm Management | Production management dossier | 2026 YTD',
     `Prepared ${new Date().toLocaleDateString('en-GB')}`,
     '',
     'EXECUTIVE CONCLUSION',
@@ -2025,9 +2084,10 @@ function exportCouncilBriefing() {
 function buildTraditionalChinesePdf(lines) {
   const wrapped = [];
   lines.forEach(line => {
-    const text = String(line);
-    if (!text) { wrapped.push(''); return; }
-    for (let i = 0; i < text.length; i += 42) wrapped.push(text.slice(i, i + 42));
+    const text = typeof line === 'object' ? String(line.text || '') : String(line);
+    const type = typeof line === 'object' ? line.type : 'normal';
+    if (!text) { wrapped.push({ text: '', type }); return; }
+    for (let i = 0; i < text.length; i += 42) wrapped.push({ text: text.slice(i, i + 42), type });
   });
   const pages = [];
   for (let i = 0; i < wrapped.length; i += 31) pages.push(wrapped.slice(i, i + 31));
@@ -2041,7 +2101,12 @@ function buildTraditionalChinesePdf(lines) {
     return `<${hex}>`;
   };
   pages.forEach(page => {
-    const stream = ['BT', '/F1 11 Tf', '50 755 Td', ...page.flatMap((line, index) => [index ? '0 -22 Td' : '', `${utf16Hex(line)} Tj`]), 'ET'].filter(Boolean).join('\n');
+    const stream = page.flatMap((line, index) => {
+      const y = 755 - index * 22;
+      const fill = line.type === 'title' ? `q 0.05 0.21 0.12 rg 42 ${y - 7} 528 22 re f Q` : line.type === 'section' ? `q 0.84 0.93 0.84 rg 42 ${y - 7} 528 22 re f Q` : line.type === 'table' ? `q 0.93 0.96 0.91 rg 42 ${y - 7} 528 22 re f Q` : '';
+      const color = line.type === 'title' ? '1 1 1 rg' : '0.08 0.18 0.12 rg';
+      return [fill, 'BT', '/F1 11 Tf', `50 ${y} Td`, color, `${utf16Hex(line.text)} Tj`, 'ET'];
+    }).filter(Boolean).join('\n');
     contentIds.push(objects.length + 1);
     objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   });
@@ -2081,6 +2146,9 @@ function exportCouncilBriefingPdf() {
     '腰果是主要產量來源；豆類提供多元化的補充產出。', '管理層應在下一個收成窗口前確認乾燥、運輸及現場防護安排。', '', '風險與治理',
     '系統目前記錄火災、收成窗口強降雨及強風等未解決的關鍵營運警報。',
     '本簡報使用系統記錄的生產資料；已記錄生產價值不等同於經審計收入或利潤。投資者審查應核對價格、成本、庫存及銷售合約。'];
+  lines[0] = { text: lines[0], type: 'title' };
+  [3, 9, 18, 23].forEach(index => { lines[index] = { text: lines[index], type: 'section' }; });
+  lines[10] = { text: lines[10], type: 'table' };
   downloadBlob('council_briefing_zh-TW_2026.pdf', buildTraditionalChinesePdf(lines), 'application/pdf');
   showToast(t('tm.export_council_success'), 'success');
 }

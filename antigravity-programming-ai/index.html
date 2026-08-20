@@ -238,6 +238,24 @@
 
         <!-- Tab 1: Overview -->
         <div class="tab-pane active" id="pane_tm_overview">
+          <section class="investor-overview" aria-labelledby="investorOverviewTitle">
+            <div class="investor-heading">
+              <div><span class="eyebrow" data-i18n="investor.eyebrow">INVESTOR VIEW · DEMO DATA</span><h2 id="investorOverviewTitle" data-i18n="investor.title">Production readiness at a glance</h2><p class="investor-subtitle" data-i18n="investor.subtitle">Recorded operating evidence for the current reporting period.</p></div>
+              <span class="data-status-badge" data-i18n="investor.recorded_badge">Recorded / pending validation</span>
+            </div>
+            <div class="investor-kpi-scroll" id="investorKpis"></div>
+            <div class="investor-grid">
+              <article class="investor-panel investor-panel-wide"><div class="panel-heading"><div><span class="eyebrow" data-i18n="investor.trend_eyebrow">OUTPUT TREND</span><h3 data-i18n="investor.trend_title">Monthly output vs target</h3></div><span class="provenance-mark">i</span></div><div class="investor-chart" id="investorTrendChart" role="img" aria-label="Monthly production trend"></div><div class="chart-legend"><span><i class="legend-dot actual"></i><span data-i18n="investor.actual">Actual</span></span><span><i class="legend-dot target"></i><span data-i18n="investor.target">Target</span></span></div></article>
+              <article class="investor-panel"><div class="panel-heading"><div><span class="eyebrow" data-i18n="investor.mix_eyebrow">PORTFOLIO MIX</span><h3 data-i18n="investor.mix_title">Recorded production mix</h3></div></div><div id="investorMix" class="mix-list"></div></article>
+            </div>
+            <div class="investor-grid investor-grid-three">
+              <article class="investor-panel"><div class="panel-heading"><h3 data-i18n="investor.takeaway_title">Investor takeaway</h3></div><div id="investorTakeaways" class="takeaway-list"></div></article>
+              <article class="investor-panel"><div class="panel-heading"><h3 data-i18n="investor.quality_title">Quality & handling</h3></div><div id="investorQuality" class="compact-list"></div></article>
+              <article class="investor-panel"><div class="panel-heading"><h3 data-i18n="investor.impact_title">Impact evidence</h3></div><div id="investorImpact" class="compact-list"></div></article>
+            </div>
+            <div class="investor-grid"><article class="investor-panel"><div class="panel-heading"><div><span class="eyebrow" data-i18n="investor.scenario_eyebrow">DECISION SUPPORT</span><h3 data-i18n="investor.scenario_title">Illustrative scenario</h3></div><span class="scenario-label" data-i18n="investor.illustrative">Illustrative only</span></div><div class="scenario-controls"><label><span data-i18n="investor.scenario_case">Case</span><select id="investorScenarioCase" class="form-control"><option value="base" data-i18n="investor.case_base">Base case</option><option value="higher" data-i18n="investor.case_higher">Higher yield</option><option value="lower" data-i18n="investor.case_lower">Lower yield</option></select></label><label><span data-i18n="investor.price_adjustment">Selling price</span><input id="investorPriceAdjustment" type="range" min="-20" max="20" value="0"><output id="investorPriceValue">0%</output></label></div><div id="investorScenarioResult" class="scenario-result"></div></article><article class="investor-panel"><div class="panel-heading"><div><span class="eyebrow" data-i18n="investor.risk_eyebrow">OPERATING HEALTH</span><h3 data-i18n="investor.risk_title">Risk watch</h3></div><span class="provenance-mark">i</span></div><div id="investorRisk" class="compact-list"></div></article></div>
+            <details class="provenance-drawer"><summary data-i18n="investor.provenance_title">How these figures were produced</summary><div id="investorProvenance" class="provenance-content"></div></details>
+          </section>
           <div class="grid-cards-4">
             <div class="stat-tile">
               <div class="stat-top">

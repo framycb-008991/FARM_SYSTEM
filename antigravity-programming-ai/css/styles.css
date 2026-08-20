@@ -794,6 +794,30 @@ body:not(.authenticated) .header-utility-zone {
   width: 100%;
 }
 
+/* Investor presentation layer: compact on desktop, horizontally scrollable on phones. */
+.investor-overview { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1rem; }
+.investor-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.2rem 0 0.35rem; }
+.investor-heading h2 { font-size: clamp(1.35rem, 2.8vw, 2rem); margin: 0.15rem 0; }
+.investor-subtitle { color: var(--color-text-muted); font-size: 0.78rem; }
+.eyebrow { color: var(--color-accent); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; }
+.data-status-badge, .scenario-label { border: 1px solid #cfe4c6; background: #f0f8ec; color: var(--color-primary-dark); border-radius: var(--radius-sm); padding: 0.35rem 0.5rem; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
+.investor-kpi-scroll { display: flex; gap: 0.65rem; overflow-x: auto; padding: 0.1rem 0.05rem 0.45rem; scrollbar-width: thin; }
+.investor-kpi { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 0.75rem; min-width: 148px; flex: 1 0 148px; box-shadow: var(--shadow-subtle); }
+.investor-kpi strong { display: block; color: var(--color-primary-dark); font-size: 1.2rem; font-variant-numeric: tabular-nums; margin: 0.2rem 0; }
+.kpi-label, .kpi-note { display: block; font-size: 0.68rem; color: var(--color-text-muted); }
+.kpi-note { font-size: 0.61rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); margin-right: 0.3rem; }
+.status-dot.calculated { background: var(--color-info); }.status-dot.warning { background: var(--color-accent); }
+.investor-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr); gap: 0.85rem; }
+.investor-grid-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.investor-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 0.9rem; min-width: 0; box-shadow: var(--shadow-card); }
+.panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.8rem; }.panel-heading h3 { font-size: 0.95rem; margin-top: 0.18rem; }
+.provenance-mark { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--color-border); border-radius: 50%; color: var(--color-text-muted); font: 600 0.7rem Georgia; }
+.investor-chart { height: 145px; display: flex; align-items: stretch; justify-content: space-around; gap: 0.45rem; border-bottom: 1px solid var(--color-border); padding: 0.5rem 0.25rem 0; }
+.chart-column { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0.35rem; color: var(--color-text-muted); font-size: 0.62rem; min-width: 28px; }.bar-pair { height: 112px; display: flex; align-items: flex-end; gap: 3px; }.bar { display: block; width: 9px; border-radius: 4px 4px 0 0; min-height: 8px; }.actual-bar { background: var(--color-primary); }.target-bar { background: #d7e4d1; border: 1px solid #b9cfb0; }
+.chart-legend { display: flex; gap: 0.85rem; margin-top: 0.55rem; font-size: 0.65rem; color: var(--color-text-muted); }.legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 0.25rem; background: var(--color-primary); }.legend-dot.target { background: #d7e4d1; border: 1px solid #b9cfb0; }
+.mix-list, .compact-list, .takeaway-list { display: flex; flex-direction: column; gap: 0.65rem; }.mix-row > div:first-child { display: flex; justify-content: space-between; font-size: 0.72rem; }.mix-row strong { color: var(--color-primary-dark); }.mix-track { background: #edf3ea; height: 8px; border-radius: 2px; margin: 0.3rem 0; overflow: hidden; }.mix-track span { display: block; height: 100%; background: var(--color-primary); }.mix-row small, .compact-list small, .risk-row small { color: var(--color-text-muted); font-size: 0.65rem; }.takeaway-list p { border-left: 3px solid var(--color-accent); padding-left: 0.55rem; font-size: 0.72rem; }.takeaway-list strong { color: var(--color-primary-dark); }.compact-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 0.4rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.35rem; }.compact-stat strong { color: var(--color-primary-dark); font-variant-numeric: tabular-nums; }.compact-stat span { color: var(--color-text-muted); font-size: 0.7rem; text-align: right; }.scenario-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }.scenario-controls label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.68rem; color: var(--color-text-muted); }.scenario-controls input { width: 100%; accent-color: var(--color-primary); }.scenario-controls output { color: var(--color-primary-dark); font-weight: 700; }.scenario-result { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.6rem; margin-top: 0.8rem; font-size: 0.72rem; }.scenario-result strong { color: var(--color-primary-dark); }.scenario-result span { color: var(--color-text-muted); }.scenario-result small { grid-column: 1 / -1; margin-top: 0.35rem; color: var(--color-accent); }.risk-row { display: flex; gap: 0.55rem; align-items: flex-start; }.risk-severity { color: var(--color-danger); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.05em; }.risk-row strong, .risk-row small { display: block; }.provenance-drawer { background: #f6faf3; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 0.7rem 0.85rem; font-size: 0.72rem; }.provenance-drawer summary { cursor: pointer; color: var(--color-primary-dark); font-weight: 700; }.provenance-content { color: var(--color-text-muted); padding-top: 0.6rem; }.provenance-content p + p { margin-top: 0.35rem; }
+
 @media (max-width: 1200px) {
   .grid-cards-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-cards-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1080,6 +1104,13 @@ body:not(.authenticated) .header-utility-zone {
     max-width: 100%;
     padding: 0.85rem 0.7rem 5.25rem;
   }
+
+  .investor-heading { flex-direction: column; gap: 0.45rem; }
+  .investor-heading h2 { font-size: 1.35rem; }
+  .investor-grid, .investor-grid-three { grid-template-columns: 1fr; }
+  .investor-panel { border-radius: 13px; padding: 0.8rem; }
+  .investor-kpi { min-width: 142px; }
+  .scenario-controls { grid-template-columns: 1fr; }
 
   .role-hero-banner {
     padding: 0.85rem 1rem;
