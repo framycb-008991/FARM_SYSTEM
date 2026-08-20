@@ -23,6 +23,15 @@ const DEMO_SELECTOR_ROLES = [
   { role: 'driver', labelKey: 'auth.demo.option_driver' }
 ];
 
+const MOCK_DEMO_ACCOUNTS = DEMO_SELECTOR_ROLES.map(item => ({
+  employeeNumber: `DEMO-${item.role}`,
+  name: item.labelKey,
+  functionName: item.labelKey,
+  role: item.role,
+  roleKey: `roles.${item.role}`,
+  status: 'active'
+}));
+
 function requireSecret(name, override) {
   const value = override || process.env[name];
   if (!value || value.length < 32) {
@@ -118,6 +127,39 @@ function selectorId(sessionSecret, employeeNumber) {
     .digest('base64url');
 }
 
+function createMockDatabase() {
+  const accounts = MOCK_DEMO_ACCOUNTS.map(account => ({ ...account }));
+  const sessions = new Map();
+  return {
+    async migrate() {},
+    async pruneExpiredSessions(now = new Date()) {
+      for (const [sid, session] of sessions) if (session.expiresAt <= now.getTime()) sessions.delete(sid);
+    },
+    async findAccount(employeeNumber) {
+      const key = String(employeeNumber || '').toUpperCase();
+      return accounts.find(account => account.employeeNumber.toUpperCase() === key) || null;
+    },
+    async findAccountsByRoles(roles) { return accounts.filter(account => roles.includes(account.role)); },
+    async createSession(sessionId, account, expiresAt, createdAt = new Date()) {
+      const session = { id: sessionId, employeeNumber: account.employeeNumber, name: account.name,
+        role: account.role, roleKey: account.roleKey, status: account.status,
+        createdAt: createdAt.getTime(), expiresAt: expiresAt.getTime() };
+      sessions.set(sessionId, session);
+      return session;
+    },
+    async getSession(sessionId, now = new Date()) {
+      const session = sessions.get(sessionId);
+      if (!session || session.expiresAt <= now.getTime()) {
+        if (sessionId) sessions.delete(sessionId);
+        return null;
+      }
+      return { ...session };
+    },
+    async deleteSession(sessionId) { if (sessionId) sessions.delete(sessionId); },
+    async close() { sessions.clear(); }
+  };
+}
+
 async function validatedDemoAccounts(db) {
   const accounts = await db.findAccountsByRoles(DEMO_SELECTOR_ROLES.map(item => item.role));
   const byRole = new Map();
@@ -149,7 +191,8 @@ async function createServerSession(db, res, account) {
 
 function createApp(options = {}) {
   const sessionSecret = requireSecret('SESSION_SECRET', options.sessionSecret);
-  const db = options.db || createDatabase(options.dbOptions || {});
+  const mockDemoAuthEnabled = process.env.MOCK_DEMO_AUTH_ENABLED === 'true' || options.mockDemoAuthEnabled === true;
+  const db = options.db || (mockDemoAuthEnabled ? createMockDatabase() : createDatabase(options.dbOptions || {}));
   const rateLimit = makeRateLimiter();
   const app = express();
 
@@ -165,6 +208,7 @@ function createApp(options = {}) {
   app.post('/api/auth/login', async (req, res, next) => {
     try {
       noStore(res);
+      if (mockDemoAuthEnabled) return res.status(503).json({ ok: false, error: 'errors.server_error' });
       const employeeNumber = String(req.body.employeeNumber || '').trim().toUpperCase();
       const password = String(req.body.password || req.body.pin || '');
       const limited = rateLimit.check(req, employeeNumber);
