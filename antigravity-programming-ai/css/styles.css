@@ -833,6 +833,7 @@ body:not(.authenticated) .header-utility-zone {
   }
 
   .header-container {
+    position: relative;
     height: 100%;
     padding: 0.45rem 0.75rem;
     display: flex;
@@ -844,6 +845,11 @@ body:not(.authenticated) .header-utility-zone {
 
   .brand-lockup {
     min-height: 40px;
+    position: absolute;
+    left: 0.75rem;
+    top: 0.45rem;
+    max-width: calc(100% - 7rem);
+    z-index: 3;
   }
 
   .brand-logo-img {
@@ -865,6 +871,10 @@ body:not(.authenticated) .header-utility-zone {
     gap: 0.3rem;
     min-height: 36px;
     margin-left: auto;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.85rem;
+    z-index: 4;
     padding: 0.35rem 0.65rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-pill);
@@ -889,6 +899,7 @@ body:not(.authenticated) .header-utility-zone {
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
     box-shadow: 0 5px 12px rgba(13, 54, 0, 0.1);
+    z-index: 2;
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 0.35rem;
     width: 100%;

@@ -342,6 +342,8 @@ function toggleMobileHeaderMenu() {
   const open = !header.classList.contains('mobile-menu-open');
   header.classList.toggle('mobile-menu-open', open);
   button.setAttribute('aria-expanded', String(open));
+  button.querySelector('.mobile-header-menu-icon').textContent = open ? '×' : '☰';
+  document.getElementById('mobileHeaderMenuLabel').textContent = open ? 'Close' : 'Menu';
 }
 
 function closeMobileHeaderMenu() {
@@ -350,6 +352,8 @@ function closeMobileHeaderMenu() {
   if (!header || !button) return;
   header.classList.remove('mobile-menu-open');
   button.setAttribute('aria-expanded', 'false');
+  button.querySelector('.mobile-header-menu-icon').textContent = '☰';
+  document.getElementById('mobileHeaderMenuLabel').textContent = 'Menu';
 }
 
 /* ==========================================================================
