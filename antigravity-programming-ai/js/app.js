@@ -290,6 +290,7 @@ function initApp() {
   const authBtn = document.getElementById('openAuthModalBtn');
   if (authBtn) {
     authBtn.addEventListener('click', () => {
+      closeMobileHeaderMenu();
       if (AppState.accessToken) {
         logout();
       } else {
@@ -297,6 +298,9 @@ function initApp() {
       }
     });
   }
+
+  const mobileMenuBtn = document.getElementById('mobileHeaderMenuBtn');
+  if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMobileHeaderMenu);
 
   // 4. Offline status toggle
   const connChip = document.getElementById('connectivityChip');
@@ -329,6 +333,23 @@ function initApp() {
   }
   updateAccountUi();
   restoreSession();
+}
+
+function toggleMobileHeaderMenu() {
+  const header = document.querySelector('.app-header');
+  const button = document.getElementById('mobileHeaderMenuBtn');
+  if (!header || !button) return;
+  const open = !header.classList.contains('mobile-menu-open');
+  header.classList.toggle('mobile-menu-open', open);
+  button.setAttribute('aria-expanded', String(open));
+}
+
+function closeMobileHeaderMenu() {
+  const header = document.querySelector('.app-header');
+  const button = document.getElementById('mobileHeaderMenuBtn');
+  if (!header || !button) return;
+  header.classList.remove('mobile-menu-open');
+  button.setAttribute('aria-expanded', 'false');
 }
 
 /* ==========================================================================
