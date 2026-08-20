@@ -16,6 +16,15 @@
 
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Leaflet 1.9 — interactive plot map engine (GIS plot-mapping feature).
+       Loaded ASYNC on purpose: app boot never blocks on the CDN (field
+       devices on low connectivity must reach the login shell regardless);
+       js/map.js waits for Leaflet before initializing the map. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 
 <body>
@@ -395,6 +404,15 @@
 
         <!-- Tab 4: Fields Map / Grid -->
         <div class="tab-pane" id="pane_tm_fields">
+          <!-- Executive read-only production map (GIS deliverable C):
+               color-coded by crop, popup summaries, zero edit controls -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="map.title_readonly">Mapa de Produção (Apenas Leitura)</span>
+              <span class="badge badge-neutral" data-i18n="tm.readonly_badge">Apenas Leitura (N1)</span>
+            </div>
+            <div id="tmMapReadOnly" class="farm-map"></div>
+          </div>
           <div class="grid-cards-3" id="tmFieldsGrid">
             <!-- Rendered via JS localized -->
           </div>
@@ -518,6 +536,19 @@
           </div>
         </div>
 
+        <!-- Tab 4: Plot Map Editor (GIS deliverable B — GPS capture + polygons) -->
+        <div class="tab-pane" id="pane_ft_map">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="map.title_editor">Mapa de Talhões — Captura GPS & Polígonos</span>
+              <span class="badge badge-neutral" data-i18n="ft.badge_offline_safe">Salva Localmente sem Sinal</span>
+            </div>
+            <div id="ftMapEditorWrap">
+              <div id="ftMapEditor" class="farm-map"></div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ====================================================================
@@ -629,6 +660,19 @@
                   <!-- Rendered via JS localized -->
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Plot Map Editor (GIS deliverable B — same editor as Technician) -->
+        <div class="tab-pane" id="pane_pm_map">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" data-i18n="map.title_editor">Mapa de Talhões — Captura GPS & Polígonos</span>
+              <span class="badge badge-neutral" data-i18n="ft.badge_offline_safe">Salva Localmente sem Sinal</span>
+            </div>
+            <div id="pmMapEditorWrap">
+              <div id="pmMapEditor" class="farm-map"></div>
             </div>
           </div>
         </div>
@@ -1052,6 +1096,8 @@
   <script src="js/data.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/copilot.js"></script>
   <script src="js/app.js"></script>
 </body>

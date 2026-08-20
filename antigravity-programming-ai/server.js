@@ -5,6 +5,8 @@ const { promisify } = require('util');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const { createDatabase } = require('./lib/demo-db');
+const { createPlotsStore } = require('./lib/plots-store');
+const FarmGeo = require('./js/geo.js');
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -198,7 +200,7 @@ function createApp(options = {}) {
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(express.json({ limit: '16kb' }));
+  app.use(express.json({ limit: '64kb' })); // plot polygons from GPS walk-and-track can carry hundreds of vertices
   app.use(cookieParser(sessionSecret));
 
   app.get('/healthz', (req, res) => {
@@ -301,6 +303,124 @@ function createApp(options = {}) {
       await db.deleteSession(req.signedCookies[SESSION_COOKIE]);
       clearSessionCookie(res);
       return res.status(200).json({ ok: true });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  /* --- GIS plot mapping API (deliverable D) -------------------------------
+     Read: any authenticated session (executive read-only view).
+     Write: farm_technician / production_manager ONLY — the boundary is
+     enforced here, never by hiding buttons (RBAC at the API layer).
+     Client-generated plot IDs make offline capture idempotent: a retried
+     POST after a connectivity drop returns the existing row, not a duplicate.
+     ------------------------------------------------------------------------- */
+  const plotsStore = createPlotsStore(db);
+  const PLOT_EDITOR_ROLES = ['farm_technician', 'production_manager'];
+  const PLOT_STATUSES = ['on-track', 'attention-needed', 'fallow', 'harvest'];
+
+  async function sessionClaims(req) {
+    return db.getSession(req.signedCookies[SESSION_COOKIE]);
+  }
+
+  function parsePlotPayload(body) {
+    const name = String(body.name || '').trim();
+    if (!name) return { error: 'errors.plot_name_required' };
+    const check = FarmGeo.validatePlotGeometry(body.geometry);
+    if (!check.ok) return { error: check.error };
+    const status = body.status && PLOT_STATUSES.includes(body.status) ? body.status : 'on-track';
+    return {
+      name,
+      geometry: check.geometry,
+      // Area is ALWAYS computed server-side — the client estimate is a hint only
+      areaHectares: Math.round(FarmGeo.areaHectares(check.geometry) * 100) / 100,
+      status
+    };
+  }
+
+  function parseCropPayload(body) {
+    if (!body.crop || typeof body.crop !== 'object') return null;
+    const cropType = String(body.crop.cropType || '').trim();
+    if (!cropType) return null;
+    return {
+      cropType,
+      variety: String(body.crop.variety || '').trim() || null,
+      plantingDate: String(body.crop.plantingDate || '').trim() || null,
+      stage: String(body.crop.stage || '').trim() || null
+    };
+  }
+
+  // GET /api/plots — every authenticated role (executive dashboards read this)
+  app.get('/api/plots', async (req, res, next) => {
+    try {
+      noStore(res);
+      const session = await sessionClaims(req);
+      if (!session) return res.status(401).json({ ok: false, error: 'errors.session_expired' });
+      return res.status(200).json({ ok: true, plots: await plotsStore.listPlots() });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // POST /api/plots — create plot polygon + crop metadata (editor roles only)
+  app.post('/api/plots', async (req, res, next) => {
+    try {
+      noStore(res);
+      const session = await sessionClaims(req);
+      if (!session) return res.status(401).json({ ok: false, error: 'errors.session_expired' });
+      if (!PLOT_EDITOR_ROLES.includes(session.role)) {
+        return res.status(403).json({ ok: false, error: 'errors.forbidden' });
+      }
+      const id = String(req.body.id || '').trim();
+      if (!id) return res.status(400).json({ ok: false, error: 'errors.plot_id_required' });
+      // Offline idempotency: same client ID re-posted after a retry
+      const existing = await plotsStore.getPlot(id);
+      if (existing) return res.status(200).json({ ok: true, deduplicated: true, plot: existing });
+      const parsed = parsePlotPayload(req.body);
+      if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+      const plot = await plotsStore.createPlot(
+        Object.assign({ id, actor: session.employeeNumber }, parsed),
+        parseCropPayload(req.body)
+      );
+      return res.status(201).json({ ok: true, plot });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  // PATCH /api/plots/:id — edit boundary / status / crop metadata (editor roles)
+  app.patch('/api/plots/:id', async (req, res, next) => {
+    try {
+      noStore(res);
+      const session = await sessionClaims(req);
+      if (!session) return res.status(401).json({ ok: false, error: 'errors.session_expired' });
+      if (!PLOT_EDITOR_ROLES.includes(session.role)) {
+        return res.status(403).json({ ok: false, error: 'errors.forbidden' });
+      }
+      const id = String(req.params.id || '');
+      if (!(await plotsStore.getPlot(id))) {
+        return res.status(404).json({ ok: false, error: 'not_found' });
+      }
+      const patch = {};
+      if (req.body.geometry !== undefined) {
+        const parsed = parsePlotPayload(Object.assign({ name: 'x' }, req.body));
+        if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+        patch.geometry = parsed.geometry;
+        patch.areaHectares = parsed.areaHectares;
+      }
+      if (req.body.name !== undefined) {
+        const name = String(req.body.name || '').trim();
+        if (!name) return res.status(400).json({ ok: false, error: 'errors.plot_name_required' });
+        patch.name = name;
+      }
+      if (req.body.status !== undefined) {
+        if (!PLOT_STATUSES.includes(req.body.status)) {
+          return res.status(400).json({ ok: false, error: 'errors.plot_bad_status' });
+        }
+        patch.status = req.body.status;
+      }
+      const plot = await plotsStore.updatePlot(id, patch, parseCropPayload(req.body), session.employeeNumber);
+      return res.status(200).json({ ok: true, plot });
     } catch (err) {
       return next(err);
     }

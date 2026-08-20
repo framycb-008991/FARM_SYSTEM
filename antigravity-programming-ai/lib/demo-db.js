@@ -30,6 +30,36 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at);
+
+-- GIS plot mapping (deliverable A): plot boundaries as GeoJSON Polygons
+-- (EPSG:4326) in a JSONB column — portable across Postgres and the pg-mem
+-- test harness. On a production PostGIS deployment this column can be
+-- migrated 1:1 to geometry(Polygon, 4326) (ST_GeomFromGeoJSON), gaining
+-- spatial indexing; the application contract is unchanged.
+CREATE TABLE IF NOT EXISTS plots (
+  id TEXT PRIMARY KEY,                  -- client-generated UUID (offline idempotency)
+  name TEXT NOT NULL,
+  geometry JSONB NOT NULL,              -- GeoJSON Polygon, EPSG:4326
+  area_hectares DOUBLE PRECISION NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_by TEXT NOT NULL,
+  updated_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crop_records (
+  id TEXT PRIMARY KEY,
+  plot_id TEXT NOT NULL UNIQUE REFERENCES plots(id) ON DELETE CASCADE,
+  crop_type TEXT NOT NULL,
+  variety TEXT,
+  planting_date DATE,
+  stage TEXT,
+  updated_by TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS crop_records_plot_idx ON crop_records(plot_id);
 `;
 
 function sslForDatabaseUrl(databaseUrl) {

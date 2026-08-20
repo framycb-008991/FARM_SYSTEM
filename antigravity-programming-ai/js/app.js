@@ -28,11 +28,13 @@ const ROLE_NAV_CONFIG = {
   farm_technician: [
     { id: 'ft_myfields', i18n: 'nav.ft_myfields', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22h20"></path><path d="M12 2v20"></path><path d="M7 9a5 5 0 0 1 10 0"></path></svg>', badge: '2' },
     { id: 'ft_newreport', i18n: 'nav.ft_newreport', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>' },
+    { id: 'ft_map', i18n: 'nav.ft_map', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>' },
     { id: 'ft_syncstatus', i18n: 'nav.ft_syncstatus', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>', badge: '1' }
   ],
   production_manager: [
     { id: 'pm_review', i18n: 'nav.pm_review', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>', badge: '2' },
     { id: 'pm_cycles', i18n: 'nav.pm_cycles', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>' },
+    { id: 'pm_map', i18n: 'nav.pm_map', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>' },
     { id: 'pm_assignments', i18n: 'nav.pm_assignments', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>' },
     { id: 'pm_reports', i18n: 'nav.pm_reports', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>' }
   ],
@@ -586,6 +588,15 @@ function switchTab(tabId) {
   const targetPane = document.getElementById(`pane_${tabId}`);
   if (targetPane) {
     targetPane.classList.add('active');
+  }
+
+  // GIS plot map: initialize/refresh when a map tab becomes visible (Leaflet
+  // needs a visible container to compute its size). The API enforces the
+  // editor/executive boundary; the mode here is presentation only.
+  if (typeof FarmMap !== 'undefined') {
+    if (tabId === 'ft_map') FarmMap.initEditor('ftMapEditor');
+    else if (tabId === 'pm_map') FarmMap.initEditor('pmMapEditor');
+    else if (tabId === 'tm_fields') FarmMap.initReadOnly('tmMapReadOnly');
   }
 }
 
@@ -2327,9 +2338,9 @@ window.filterAuditLogs = filterAuditLogs;
 window.openAuthModal = openAuthModal;
 window.closeAuthModal = closeAuthModal;
 window.handleAuthSubmitStep1 = handleAuthSubmitStep1;
-window.handleOtpInput = handleOtpInput;
-window.handleAuthSubmitStep2 = handleAuthSubmitStep2;
-window.handleAuthSubmitStep3 = handleAuthSubmitStep3;
+// (stale OTP exports removed — the OTP flow was deleted when auth moved
+// server-side; the leftover window.* lines threw on every page load and
+// silently aborted every export below them)
 window.exportCSVReport = exportCSVReport;
 window.exportPDFReport = exportPDFReport;
 window.openCopilot = openCopilot;

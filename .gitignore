@@ -6,3 +6,6 @@ Antigravity Programming & AI/demo-accounts*.b64
 # Dependencies / build output
 Antigravity Programming & AI/node_modules/
 Antigravity Programming & AI/npm-debug.log*
+
+# Dependencies (nested app dir)
+antigravity-programming-ai/node_modules/
