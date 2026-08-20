@@ -484,7 +484,7 @@ function renderSidebarNav(roleKey) {
 
     return `
       <li class="sidebar-nav-item">
-        <button class="sidebar-nav-btn ${activeClass}" data-tab="${item.id}" onclick="switchTab('${item.id}')">
+        <button class="sidebar-nav-btn ${activeClass}" data-tab="${item.id}" aria-label="${t(item.i18n)}" title="${t(item.i18n)}" ${activeClass ? 'aria-current="page"' : ''} onclick="switchTab('${item.id}')">
           <div class="nav-btn-content">
             <span class="nav-btn-icon">${item.icon}</span>
             <span class="nav-btn-text">${t(item.i18n)}</span>

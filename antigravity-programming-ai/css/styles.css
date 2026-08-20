@@ -814,6 +814,139 @@ body:not(.authenticated) .header-utility-zone {
   }
 }
 
+@media (max-width: 600px) {
+  :root {
+    --header-height: 154px;
+  }
+
+  .app-header {
+    height: var(--header-height);
+  }
+
+  .header-container {
+    height: 100%;
+    padding: 0.45rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .brand-lockup {
+    min-height: 40px;
+  }
+
+  .brand-logo-img {
+    height: 34px;
+  }
+
+  .brand-app-name {
+    font-size: 13px;
+  }
+
+  .brand-foundation-sub {
+    font-size: 10px;
+  }
+
+  .header-utility-zone {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  .header-search-box {
+    grid-column: 1 / -1;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .search-input,
+  .search-input:focus {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .role-label-pill {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .role-label-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-auth-demo,
+  .status-chip,
+  .select-pill,
+  .btn-copilot {
+    min-height: 30px;
+    white-space: nowrap;
+  }
+
+  .select-pill {
+    min-width: 0;
+  }
+
+  .select-pill select {
+    max-width: 105px;
+  }
+
+  .header-utility-zone > .select-pill {
+    grid-column: 1 / 3;
+  }
+
+  .btn-copilot {
+    justify-content: center;
+    padding-inline: 0.55rem;
+  }
+
+  .alert-bar-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .alert-ticker-list {
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+
+  .alert-ticker-chip {
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .alert-toggle-btn {
+    margin-left: auto;
+  }
+
+  .table-responsive {
+    position: relative;
+    padding-bottom: 1.2rem;
+    scrollbar-color: var(--color-primary) var(--color-surface-alt);
+    scrollbar-width: thin;
+    box-shadow: inset -18px 0 14px -18px var(--color-primary-dark);
+  }
+
+  .table-responsive::after {
+    content: 'Deslize horizontalmente para ver mais';
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.15rem;
+    padding: 0 0.25rem;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: 9px;
+    pointer-events: none;
+  }
+}
+
 /* ==========================================================================
    Buttons (Pill-Shaped 999px, Solid Orange #FF5400 Primary Action with →)
    ========================================================================== */
