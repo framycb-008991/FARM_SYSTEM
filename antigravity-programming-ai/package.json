@@ -8,7 +8,7 @@
     "start": "node server.js",
     "db:migrate": "node scripts/migrate.js",
     "import:accounts": "node scripts/import-demo-accounts.js",
-    "test": "node tests/access-control.test.js && node tests/climate.test.js && node tests/db-import.test.js && node tests/server-auth.test.js && node tests/demo-selector.test.js && node tests/mock-demo.test.js"
+    "test": "node tests/access-control.test.js && node tests/climate.test.js && node tests/ai-copilot.test.js && node tests/db-import.test.js && node tests/server-auth.test.js && node tests/demo-selector.test.js && node tests/mock-demo.test.js"
   },
   "engines": {
     "node": ">=20"

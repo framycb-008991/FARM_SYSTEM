@@ -739,7 +739,13 @@ const I18N_DICTIONARY = {
     'audit_meta.firms_unreachable': 'NASA FIRMS inacessível — retry com backoff; outros talhões continuam',
     'audit_meta.firms_key_missing': 'MAP_KEY do FIRMS em falta — configuração única pendente; dados existentes mantidos',
     'audit_meta.threshold_updated': 'Limiar climático editado em Configurações',
-    'audit_meta.fire_reports_synced': 'Reportes de incêndio offline sincronizados — alertas críticos disparados no momento da sincronização'
+    'audit_meta.fire_reports_synced': 'Reportes de incêndio offline sincronizados — alertas críticos disparados no momento da sincronização',
+    'audit_actions.SOP_INGESTED': 'SOP Ingerido (IA)',
+    'audit_actions.COPILOT_QUERY': 'Consulta ao Assistente AI',
+    'audit_meta.sop_ingested': 'Documento SOP fragmentado, vetorizado e indexado para o Assistente AI',
+    'audit_meta.copilot_query': 'Consulta ao copiloto registada (idioma detetado, secções SOP, ferramentas, latência)',
+    'errors.copilot_unavailable': 'Módulo do Assistente AI indisponível.',
+    'errors.sop_empty': 'Documento SOP vazio ou sem secções válidas.'
   },
 
   'en-GB': {
@@ -1477,7 +1483,13 @@ const I18N_DICTIONARY = {
     'audit_meta.firms_unreachable': 'NASA FIRMS unreachable — backoff retry; other fields continue',
     'audit_meta.firms_key_missing': 'FIRMS MAP_KEY missing — one-time setup pending; existing data retained',
     'audit_meta.threshold_updated': 'Climate threshold edited in Settings',
-    'audit_meta.fire_reports_synced': 'Offline fire reports synced — critical alerts fired at sync time'
+    'audit_meta.fire_reports_synced': 'Offline fire reports synced — critical alerts fired at sync time',
+    'audit_actions.SOP_INGESTED': 'SOP Ingested (AI)',
+    'audit_actions.COPILOT_QUERY': 'AI Assistant Query',
+    'audit_meta.sop_ingested': 'SOP document chunked, embedded and indexed for the AI Assistant',
+    'audit_meta.copilot_query': 'Copilot query logged (detected language, SOP sections, tools, latency)',
+    'errors.copilot_unavailable': 'AI Assistant module unavailable.',
+    'errors.sop_empty': 'SOP document empty or has no valid sections.'
   },
 
   'zh-TW': {
@@ -2215,7 +2227,13 @@ const I18N_DICTIONARY = {
     'audit_meta.firms_unreachable': 'NASA FIRMS 無法連線 — 退避重試；其他田塊繼續作業',
     'audit_meta.firms_key_missing': '缺少 FIRMS MAP_KEY — 待完成一次性設定；保留現有資料',
     'audit_meta.threshold_updated': '氣候臨界值已於設定中編輯',
-    'audit_meta.fire_reports_synced': '離線火災通報已同步 — 危急警報於同步時立即發出'
+    'audit_meta.fire_reports_synced': '離線火災通報已同步 — 危急警報於同步時立即發出',
+    'audit_actions.SOP_INGESTED': 'SOP 已擷取（AI）',
+    'audit_actions.COPILOT_QUERY': 'AI 助理查詢',
+    'audit_meta.sop_ingested': 'SOP 文件已分塊、向量化並建立索引供 AI 助理使用',
+    'audit_meta.copilot_query': 'Copilot 查詢已記錄（偵測語言、SOP 章節、工具、延遲）',
+    'errors.copilot_unavailable': 'AI 助理模組無法使用。',
+    'errors.sop_empty': 'SOP 文件為空或無有效章節。'
   }
 };
 

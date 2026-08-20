@@ -1872,7 +1872,11 @@ function closeCopilot() {
   document.getElementById('copilotDrawer')?.classList.remove('open');
 }
 
-function sendCopilotPrompt(question) {
+/* --- Copilot query handler — unified agent pipeline (AI_ASSISTANT_SPEC.md).
+       The quick-reply chips and the free-text input both feed THIS function
+       (§4): language detection → SOP hybrid retrieval → tool calls with the
+       user's own session claims → grounded answer with citations → audit log. --- */
+async function sendCopilotPrompt(question) {
   const container = document.getElementById('copilotMessages');
   if (!container) return;
 
@@ -1881,36 +1885,33 @@ function sendCopilotPrompt(question) {
       <div class="msg-bubble">${question}</div>
     </div>
   `;
+  container.scrollTop = container.scrollHeight;
 
-  let reply = 'SOP PON-AGR-MEC-V2.0 — Fundação Tzu Chi Moçambique.';
-  if (question.includes('>120%')) {
-    reply = currentLocale === 'zh-TW'
-      ? '依據 ADM-WTR-01 作業程序，當水井出水量超過30日移動平均之120%（2號水井目前達138%），協調長須於當日指派檢修小組進行實體管線查漏。'
-      : (currentLocale === 'en-GB'
-          ? 'Per procedure ADM-WTR-01, when a borehole exceeds 120% of the 30-day moving average (Borehole 2 recorded 138%), the Coordinator must dispatch an immediate physical inspection team to verify the mainline.'
-          : 'Segundo o procedimento ADM-WTR-01, quando a leitura excede 120% da média móvel de 30 dias (Furo 2 registou 138%), o Coordenador deve destacar imediatamente uma equipa de inspeção física.');
-  } else if (question.includes('offline') || question.includes('同步') || question.includes('sync')) {
-    reply = currentLocale === 'zh-TW'
-      ? '依據前端與後端規格書§5，系統採用離線優先（Offline-First）設計。客戶端生成 UUID 儲存於本機，恢復網路時自動批次傳送至 POST /sync/field-reports。'
-      : (currentLocale === 'en-GB'
-          ? 'According to FRONTEND_SPEC.md §5 and BACKEND_SPEC.md §5, reports generate client UUIDs and save locally in IndexedDB, batch syncing via POST /sync/field-reports upon reconnection.'
-          : 'Conforme FRONTEND_SPEC.md §5 e BACKEND_SPEC.md §5, o formulário gera UUID no cliente e salva localmente no IndexedDB, sincronizando via POST /sync/field-reports.');
-  } else if (question.includes('PIN')) {
-    reply = currentLocale === 'zh-TW'
-      ? '依據身分認證規範§2，系統管理員可重設員工 PIN 碼，帳號將轉為「待啟用」狀態，員工於下次登入時透過 SMS OTP 簡訊驗證並自訂永久 PIN 碼。'
-      : (currentLocale === 'en-GB'
-          ? 'Per BACKEND_SPEC.md §2, administrators can reset employee PINs. Status changes to "pending", and on next login the employee verifies via SMS OTP and sets a permanent PIN.'
-          : 'Conforme BACKEND_SPEC.md §2, o Administrador pode resetar o PIN no painel. A conta passa a "pending" e na próxima autenticação o colaborador define o PIN permanente via SMS OTP.');
+  const thinkingId = `copilot-thinking-${Date.now()}`;
+  container.innerHTML += `
+    <div class="copilot-msg assistant" id="${thinkingId}">
+      <div class="msg-bubble">…</div>
+    </div>
+  `;
+  container.scrollTop = container.scrollHeight;
+
+  // The agent forwards the user's own session claims on every tool call (§5, §10)
+  const result = await CopilotAgent.handleQuery(AppState.accessToken, question);
+
+  const metaBits = [];
+  if (result.citations.length) metaBits.push(result.citations.map(c => `[${c}]`).join(' '));
+  if (result.tools.length) {
+    metaBits.push(result.tools.map(t => `${t.tool} → ${t.status}`).join(' · '));
   }
+  const metaHtml = metaBits.length
+    ? `<div style="font-size: 9px; color: var(--color-text-muted); margin-top: 0.35rem;">${metaBits.join(' — ')} · ${result.latencyMs}ms</div>`
+    : '';
 
-  setTimeout(() => {
-    container.innerHTML += `
-      <div class="copilot-msg assistant">
-        <div class="msg-bubble">${reply}</div>
-      </div>
-    `;
-    container.scrollTop = container.scrollHeight;
-  }, 400);
+  const bubble = document.getElementById(thinkingId);
+  if (bubble) {
+    bubble.innerHTML = `<div class="msg-bubble">${result.reply.replace(/\n/g, '<br>')}${metaHtml}</div>`;
+  }
+  container.scrollTop = container.scrollHeight;
 }
 
 function handleCopilotSend() {

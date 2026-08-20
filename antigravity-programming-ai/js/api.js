@@ -1337,6 +1337,83 @@
       return { ok: true, status: 200, data: { synced: queued.length, alertsRaised: raised } };
     },
 
+    /* --- AI Copilot endpoints (AI_ASSISTANT_SPEC.md §3.1, §8) --- */
+
+    // POST /ai/sop/ingest [administrator] — ingest the full SOP text without
+    // code changes (§3.1). Chunks + embeddings are produced by js/copilot.js
+    // (CopilotSOP); this endpoint is the authenticated write path.
+    async ingestSopDocument(token, payload) {
+      const auth = await requireRole(token, ['administrator']);
+      if (!auth.ok) return auth;
+      const sop = global.CopilotSOP;
+      if (!sop || typeof sop.chunkAndEmbed !== 'function') {
+        return { ok: false, status: 500, error: 'errors.copilot_unavailable' };
+      }
+      const version = String(payload.version || '2.0');
+      const chunks = sop.chunkAndEmbed(String(payload.text || ''), version);
+      if (chunks.length === 0) {
+        return { ok: false, status: 400, error: 'errors.sop_empty' };
+      }
+      // Upsert by (section_ref, version): re-ingesting a version replaces its chunks
+      db().sopChunks = db().sopChunks.filter(c => !(c.version === version && payload.replaceVersion));
+      chunks.forEach(c => db().sopChunks.push(c));
+      writeAuditLog(`${auth.claims.name} (${auth.claims.sub})`, auth.claims.role,
+        'audit_actions.SOP_INGESTED', 'SopDocument', `v${version}`, 'audit_meta.sop_ingested');
+      return { ok: true, status: 201, data: { ingested: chunks.length, version } };
+    },
+
+    // GET /sync/status — read-only view of the caller's own pending/synced
+    // records (technician field reports; entry-role ops entries + fire reports)
+    async getSyncStatus(token) {
+      const auth = await requireRole(token, ['farm_technician'].concat(Object.keys(ENTRY_ROLE_UNIT)));
+      if (!auth.ok) return auth;
+      const sub = auth.claims.sub;
+      const items = [];
+      if (auth.claims.role === 'farm_technician') {
+        db().fieldReports.filter(r => r.technicianId === sub).forEach(r =>
+          items.push({ id: r.id, kind: 'field_report', syncStatus: r.syncStatus, submittedAt: r.submittedAt }));
+      }
+      db().opsEntries.filter(e => e.submittedBy === sub).forEach(e =>
+        items.push({ id: e.id, kind: 'ops_entry', syncStatus: e.syncStatus, submittedAt: e.submittedAt }));
+      db().fireHotspots.filter(h => h.source === 'human_report' && h.reportedBy === sub).forEach(h =>
+        items.push({ id: h.id, kind: 'fire_report', syncStatus: h.syncStatus, submittedAt: h.detectedAt }));
+      return { ok: true, status: 200, data: {
+        pending: items.filter(i => i.syncStatus === 'pending'),
+        syncedCount: items.filter(i => i.syncStatus === 'synced').length
+      } };
+    },
+
+    // POST /ai/audit — write-ahead copilot query log (§8). Any authenticated
+    // user logs their own queries only (user_id comes from the session claims).
+    async logCopilotQuery(token, payload) {
+      const auth = await requireRole(token, ROLES);
+      if (!auth.ok) return auth;
+      const entry = {
+        id: `AILOG-${Date.now()}-${db().aiAuditLogs.length + 1}`,
+        user_id: auth.claims.sub,
+        prompt: String(payload.prompt || ''),
+        language: payload.language || 'pt',
+        used_sop_sections: payload.used_sop_sections || [],
+        used_tools: payload.used_tools || [],
+        response: String(payload.response || ''),
+        latency_ms: payload.latency_ms || 0,
+        created_at: new Date().toISOString()
+      };
+      db().aiAuditLogs.unshift(entry);
+      // Mirror into the main AuditLog so Administration sees copilot usage in
+      // the same audit surface as everything else (BACKEND_SPEC.md §7)
+      writeAuditLog(`${auth.claims.name} (${auth.claims.sub})`, auth.claims.role,
+        'audit_actions.COPILOT_QUERY', 'AiAuditLog', entry.id, 'audit_meta.copilot_query');
+      return { ok: true, status: 201, data: entry };
+    },
+
+    // GET /ai/audit-logs [administrator]
+    async listAiAuditLogs(token) {
+      const auth = await requireRole(token, ['administrator']);
+      if (!auth.ok) return auth;
+      return { ok: true, status: 200, data: db().aiAuditLogs };
+    },
+
     /* --- Legacy test hook removed: no browser-side token signer exists in the
            secure Render demo. --- */
     async _signTestToken() {

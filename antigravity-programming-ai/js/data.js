@@ -766,5 +766,71 @@ const MECUZI_DATA = {
 
   // Mock Twilio outbox (§8) — every SMS the system "sends" lands here AND in
   // AuditLog. Critical severity only; watch/warning never fire an SMS.
-  smsOutbox: []
+  smsOutbox: [],
+
+  /* ==========================================================================
+     9. AI Copilot (AI_ASSISTANT_SPEC.md §3.1, §8)
+     DB-equivalent schema (migration target — Supabase/Postgres):
+       sop_chunks(id text pk, version text, section_ref text, title text,
+                  content text, embedding vector, created_at timestamptz)
+         -- HNSW index on embedding + FTS vector on content
+       ai_audit_logs(id text pk, user_id text, prompt text, language text,
+                     used_sop_sections text[], used_tools jsonb, response text,
+                     latency_ms int, created_at timestamptz)
+     ========================================================================== */
+
+  // Seed excerpt of SOP PON-AGR-MEC-V2.0 — PARTIAL placeholder. The full
+  // document is ingested without code changes via POST /ai/sop/ingest
+  // (MockAPI.ingestSopDocument) or the CLI: see js/copilot.js header.
+  // `content` is the PT source of truth; contentEn/contentZh are display
+  // glosses so §6 language reflection works before the full translated SOP
+  // exists. Embeddings are computed lazily on first retrieval.
+  sopChunks: [
+    {
+      id: 'SOP-2.0-0001', version: '2.0', section_ref: '§3.1',
+      title: 'ADM-WTR-01 — Anomalia de furo >120%',
+      content: 'Quando a leitura de um furo de água excede 120% da média móvel de 30 dias, o Coordenador deve destacar no próprio dia uma equipa de inspeção física para verificar a linha principal. A anomalia indica fuga provável. Registar a inspeção no módulo Apoio Operacional.',
+      contentEn: 'When a borehole reading exceeds 120% of the 30-day moving average, the Coordinator must dispatch a physical inspection team the same day to verify the mainline. The anomaly indicates a probable leak. Log the inspection in Operations Support.',
+      contentZh: '當水井讀數超過30日移動平均值之120%時，協調長必須於當日指派實體檢查小組查驗主管線。此異常表示可能漏水。檢查結果須登錄於營運支援模組。'
+    },
+    {
+      id: 'SOP-2.0-0002', version: '2.0', section_ref: '§4.2',
+      title: 'Registo offline e sincronização em lote',
+      content: 'Todo o registo de campo gera um UUID no cliente antes de ter rede e é guardado localmente. Ao recuperar conectividade, os registos são enviados em lote para POST /sync/field-reports. O UUID do cliente é a chave de idempotência: reenvios nunca criam duplicados.',
+      contentEn: 'Every field record generates a client-side UUID before connectivity exists and is stored locally. When connectivity returns, records batch-sync to POST /sync/field-reports. The client UUID is the idempotency key: retries never create duplicates.',
+      contentZh: '每筆田野紀錄在無網路時即於用戶端產生 UUID 並儲存於本機。恢復連線後，紀錄批次傳送至 POST /sync/field-reports。用戶端 UUID 為冪等鍵：重送不會產生重複資料。'
+    },
+    {
+      id: 'SOP-2.0-0003', version: '2.0', section_ref: '§2.2',
+      title: 'Reposição de PIN de colaborador',
+      content: 'Apenas o Administrador pode repor o PIN de um colaborador no ecrã Colaboradores & PINs. A conta passa ao estado pendente; no próximo início de sessão o colaborador verifica por SMS OTP e define o PIN permanente. Toda a reposição fica registada no AuditLog.',
+      contentEn: 'Only an Administrator can reset an employee PIN on the Employees & PINs screen. The account moves to pending; at next login the employee verifies via SMS OTP and sets a permanent PIN. Every reset is recorded in the AuditLog.',
+      contentZh: '僅管理員可於「員工與PIN」畫面重設員工 PIN。帳號轉為待啟用狀態；下次登入時員工透過 SMS OTP 驗證並設定永久 PIN。每次重設均記錄於稽核日誌。'
+    },
+    {
+      id: 'SOP-2.0-0004', version: '2.0', section_ref: '§5.3',
+      title: 'Chuva durante colheita e secagem do caju',
+      content: 'Se a previsão indicar chuva durante a janela de colheita ou secagem, o Gestor de Produção deve antecipar a recolha da castanha exposta e cobrir os montes em secagem. Chuva superior a 40mm em 24h neste período é tratada como alerta crítico.',
+      contentEn: 'If rain is forecast during the harvest or drying window, the Production Manager must bring forward collection of exposed nuts and cover drying piles. Rain above 40mm in 24h in this period is treated as a critical alert.',
+      contentZh: '若預測採收或乾燥期間有雨，生產經理必須提前收集曝曬中的腰果並覆蓋乾燥堆。此期間24小時降雨超過40毫米視為危急警報。'
+    },
+    {
+      id: 'SOP-2.0-0005', version: '2.0', section_ref: '§6.1',
+      title: 'Resposta a incêndio ou fumo',
+      content: 'Qualquer colaborador que observe fogo ou fumo deve reportar de imediato pela aplicação (Reportar Fogo / Fumo) e avisar o Gestor de Produção. Não aguardar confirmação por satélite. Marcar a localização exacta e afastar pessoal na direção contrária ao vento.',
+      contentEn: 'Any employee who sees fire or smoke must report it immediately in the app (Report Fire / Smoke) and notify the Production Manager. Do not wait for satellite confirmation. Mark the exact location and move personnel upwind.',
+      contentZh: '任何員工發現火災或濃煙，必須立即於應用程式通報（通報火災/濃煙）並通知生產經理。不得等待衛星確認。標記確切位置並將人員往上風處疏散。'
+    },
+    {
+      id: 'SOP-2.0-0006', version: '2.0', section_ref: '§7.4',
+      title: 'Escala 14/2 e cobertura de pontos',
+      content: 'A escala padrão é 14 dias de trabalho por 2 dias de descanso. Cada Ponto (A, B, C) deve ter sempre liderança técnica presente; pedidos de folga simultâneos do Técnico e do Comissionário do mesmo Ponto são bloqueados.',
+      contentEn: 'The standard rotation is 14 days on, 2 days off. Each Point (A, B, C) must always have technical leadership present; simultaneous leave requests from a Point\'s Technician and Commissioner are blocked.',
+      contentZh: '標準輪班為工作14天、休息2天。各據點（A、B、C）必須隨時有技術領導在場；同一據點之技術員與委員不得同時休假。'
+    }
+  ],
+
+  // AI audit trail (§8) — every copilot query logged with user, detected
+  // language, retrieved SOP sections, executed tools, response and latency.
+  aiAuditLogs: []
 };
