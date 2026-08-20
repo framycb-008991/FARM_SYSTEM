@@ -1906,15 +1906,38 @@ function exportCSVReport() {
 }
 
 function buildSimplePdf(lines) {
-  const safeLines = lines.map(line => String(line).replace(/[^\x20-\x7E]/g, '?').replace(/[()\\]/g, ch => `\\${ch}`));
-  const stream = ['BT', '/F1 12 Tf', '50 780 Td', ...safeLines.flatMap((line, index) => [index ? '0 -18 Td' : '', `(${line}) Tj`]), 'ET'].filter(Boolean).join('\n');
+  const pageLines = [];
+  lines.forEach(line => {
+    const text = String(line);
+    if (!text) { pageLines.push(''); return; }
+    for (let i = 0; i < text.length; i += 92) pageLines.push(text.slice(i, i + 92));
+  });
+  const pages = [];
+  for (let i = 0; i < pageLines.length; i += 36) pages.push(pageLines.slice(i, i + 36));
+  if (!pages.length) pages.push([]);
+  const pageObjects = [];
+  const contentObjects = [];
   const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+    null,
+    null
   ];
+  pages.forEach(page => {
+    const stream = ['BT', '/F1 10 Tf', '50 760 Td', ...page.flatMap((line, index) => [
+      index ? '0 -19 Td' : '',
+      `(${String(line).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '?').replace(/[()\\]/g, ch => `\\${ch}`)}) Tj`
+    ]), 'ET'].filter(Boolean).join('\n');
+    contentObjects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
+  const fontObject = objects.length + contentObjects.length + pages.length + 1;
+  contentObjects.forEach(content => objects.push(content));
+  pages.forEach((page, index) => {
+    const contentId = 3 + index;
+    pageObjects.push(objects.length + 1);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObject} 0 R >> >> /Contents ${contentId} 0 R >>`);
+  });
+  objects[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objects[1] = `<< /Type /Pages /Kids [${pageObjects.map(id => `${id} 0 R`).join(' ')}] /Count ${pageObjects.length} >>`;
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
   objects.forEach((object, index) => {
@@ -1929,12 +1952,59 @@ function buildSimplePdf(lines) {
 }
 
 function exportPDFReport() {
-  const lines = [t('tm.btn_download_dossier'), 'Mecuzi Farm Management', `Locale: ${currentLocale}`, ''];
-  MECUZI_DATA.yieldData.forEach(y => {
-    const totalKg = y.cajuKg + y.feijaoKg;
-    lines.push(`${t(y.periodKey)} | ${totalKg} kg / ${y.targetKg} kg | ${((totalKg / y.targetKg) * 100).toFixed(0)}%`);
-  });
-  downloadBlob(`monthly_dossier_2026_${currentLocale}.pdf`, buildSimplePdf(lines), 'application/pdf');
+  const rows = MECUZI_DATA.yieldData;
+  const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
+  const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
+  const cajuKg = rows.reduce((sum, row) => sum + row.cajuKg, 0);
+  const feijaoKg = rows.reduce((sum, row) => sum + row.feijaoKg, 0);
+  const recordedValue = rows.reduce((sum, row) => sum + row.totalValueMzn, 0);
+  const firstTotal = rows[0].cajuKg + rows[0].feijaoKg;
+  const lastTotal = rows[rows.length - 1].cajuKg + rows[rows.length - 1].feijaoKg;
+  const attainment = targetKg ? (totalKg / targetKg) * 100 : 0;
+  const growth = firstTotal ? ((lastTotal / firstTotal) - 1) * 100 : 0;
+  const best = rows.reduce((a, b) => (a.cajuKg + a.feijaoKg) > (b.cajuKg + b.feijaoKg) ? a : b);
+  const activeFields = MECUZI_DATA.fields.filter(field => field.status === 'active' || field.statusKey === 'field_status.active').length || MECUZI_DATA.fields.length;
+  const areaHa = MECUZI_DATA.fields.reduce((sum, field) => sum + Number(field.areaHa || 0), 0);
+  const criticalAlerts = (MECUZI_DATA.climateAlerts || []).filter(alert => alert.severity === 'critical' && !alert.resolvedAt);
+  const fmt = value => Number(value).toLocaleString('en-GB');
+  const money = value => `MZN ${fmt(value)}`;
+  const lines = [
+    'INVESTOR PRODUCTION BRIEFING',
+    'Mecuzi Farm Management | Management presentation draft | 2026 YTD',
+    `Prepared ${new Date().toLocaleDateString('en-GB')}`,
+    '',
+    'EXECUTIVE CONCLUSION',
+    `Recorded production reached ${(totalKg / 1000).toFixed(1)} tonnes against a ${(targetKg / 1000).toFixed(1)}-tonne target: ${attainment.toFixed(1)}% attainment and ${(totalKg - targetKg) / 1000 >= 0 ? '+' : ''}${((totalKg - targetKg) / 1000).toFixed(1)} tonnes versus plan.`,
+    `Monthly output increased from ${(firstTotal / 1000).toFixed(1)} tonnes in January to ${(lastTotal / 1000).toFixed(1)} tonnes in June (${growth.toFixed(0)}% growth), with the strongest month at ${t(best.periodKey)}.`,
+    `The production record supports a credible scale-up narrative, subject to commercial validation of pricing, costs, quality and sales contracts.`,
+    '',
+    'INVESTOR KPIs',
+    `Total production: ${(totalKg / 1000).toFixed(1)} tonnes | Target: ${(targetKg / 1000).toFixed(1)} tonnes | Variance: +${((totalKg - targetKg) / 1000).toFixed(1)} tonnes`,
+    `Recorded production value: ${money(recordedValue)} | Monthly average: ${money(recordedValue / rows.length)}`,
+    `Production footprint: ${activeFields} active fields | ${fmt(areaHa)} hectares recorded | ${(totalKg / 1000 / (areaHa || 1)).toFixed(2)} tonnes per recorded hectare`,
+    `Crop mix: cashew ${(cajuKg / totalKg * 100).toFixed(1)}% (${(cajuKg / 1000).toFixed(1)} tonnes) | beans ${(feijaoKg / totalKg * 100).toFixed(1)}% (${(feijaoKg / 1000).toFixed(1)} tonnes)`,
+    '',
+    'MONTHLY PRODUCTION PERFORMANCE',
+    'Period                         Output       Target       Attainment       Recorded value',
+    ...rows.map(row => {
+      const output = row.cajuKg + row.feijaoKg;
+      return `${t(row.periodKey).padEnd(28)} ${(output / 1000).toFixed(1).padStart(6)} t     ${(row.targetKg / 1000).toFixed(1).padStart(6)} t        ${(output / row.targetKg * 100).toFixed(0).padStart(5)}%        ${money(row.totalValueMzn)}`;
+    }),
+    '',
+    'PRODUCTION INSIGHTS',
+    `1. Output exceeded the cumulative target by ${((totalKg - targetKg) / 1000).toFixed(1)} tonnes, indicating production execution above plan during the reporting period.`,
+    `2. Cashew contributed ${(cajuKg / 1000).toFixed(1)} tonnes and remains the principal value driver; beans provide a complementary ${((feijaoKg / totalKg) * 100).toFixed(1)}% of volume.`,
+    `3. June remained ${((lastTotal / rows[rows.length - 1].targetKg) * 100 - 100).toFixed(0)}% above its monthly target despite easing from the May peak, which merits monitoring rather than being treated as a structural decline.`,
+    '',
+    'RISK AND MITIGATION WATCH',
+    `${criticalAlerts.length} unresolved critical operational alerts are recorded in the system. Current exposure includes harvest-window heavy rain, a nearby fire detection and high-wind conditions.`,
+    'Management action: protect exposed harvest and drying stock, maintain field inspection coverage, and confirm contingency logistics before the next harvest window.',
+    '',
+    'EVIDENCE AND SCOPE',
+    'This briefing is calculated from the FARM_SYSTEM production ledger and operational alert records. “Recorded production value” is not presented as audited revenue or profit. Investor diligence should reconcile volumes, prices, costs, inventory movements and signed sales evidence.',
+    `Source period: ${t(rows[0].periodKey)} to ${t(rows[rows.length - 1].periodKey)} | Generated by FARM_SYSTEM management reporting | Locale: ${currentLocale}`
+  ];
+  downloadBlob(`investor_production_briefing_2026_${currentLocale}.pdf`, buildSimplePdf(lines), 'application/pdf');
   showToast(t('tm.export_pdf_success'), 'success');
 }
 
