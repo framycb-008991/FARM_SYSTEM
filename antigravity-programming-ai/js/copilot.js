@@ -417,7 +417,20 @@
       executions.push(await executeCopilotTool(p.tool, p.args, authToken));
     }
 
-    const reply = composeAnswer(language, retrieved, executions);
+    let reply = composeAnswer(language, retrieved, executions);
+    // The free OpenRouter route is an optional server-side writing layer. The
+    // deterministic grounded answer remains the fallback and test baseline.
+    if (typeof window !== 'undefined' && global.MockAPI && global.MockAPI.composeCopilotAnswer) {
+      try {
+        const composed = await global.MockAPI.composeCopilotAnswer(
+          prompt,
+          language,
+          reply,
+          retrieved.map(r => `SOP ${r.chunk.section_ref}`)
+        );
+        if (composed && composed.ok && typeof composed.data.answer === 'string') reply = composed.data.answer;
+      } catch (e) { /* provider failure must not break the grounded response */ }
+    }
     const latencyMs = Date.now() - started;
 
     // §8: audit every query (write-ahead via the API; best-effort — a logging

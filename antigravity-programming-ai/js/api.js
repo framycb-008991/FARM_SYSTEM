@@ -182,6 +182,14 @@
     });
   }
 
+  async function composeCopilotAnswer(prompt, language, draft, citations) {
+    return authFetch('/api/ai/compose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, language, draft, citations })
+    });
+  }
+
   // Returns { ok: true, claims } or { ok: false, status: 401, error }.
   // Existing MockAPI functions still accept a first `token` argument, but it is
   // now a non-secret public claims object derived from the server session.
@@ -810,6 +818,9 @@
       const res = await demoLogin(selectionId);
       if (!res.ok) return res;
       return { ok: true, status: 200, data: { employee: res.data.employee, session: res.data.session } };
+    },
+    async composeCopilotAnswer(prompt, language, draft, citations) {
+      return composeCopilotAnswer(prompt, language, draft, citations);
     },
 
     // Kept only so stale callers fail closed. The workbook has no phone numbers,

@@ -16,3 +16,5 @@ services:
         sync: false
       - key: DATABASE_SSL
         value: "true"
+      - key: OPENROUTER_API_KEY
+        sync: false

@@ -16,6 +16,7 @@ const SESSION_COOKIE = 'mecuzi_demo_session';
 const SESSION_TTL_MS = 15 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const OPENROUTER_MODEL = 'openrouter/free';
 const DEMO_SELECTOR_ROLES = [
   { role: 'top_management', labelKey: 'auth.demo.option_top_management' },
   { role: 'farm_technician', labelKey: 'auth.demo.option_farm_technician' },
@@ -121,6 +122,38 @@ function clearSessionCookie(res) {
 
 function noStore(res) {
   res.set('Cache-Control', 'no-store');
+}
+
+async function generateOpenRouterAnswer({ apiKey, role, language, prompt, draft, citations }) {
+  if (!apiKey) return null;
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://farm-system-a1v8.onrender.com',
+      'X-Title': 'FARM_SYSTEM demo'
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      temperature: 0.2,
+      messages: [
+        {
+          role: 'system',
+          content: `You are the FARM_SYSTEM demo assistant. Reply only in ${language}. The authenticated role is ${role}. Rewrite the grounded draft into a concise operational answer. Do not add facts, figures, permissions, users, or recommendations absent from the draft. Preserve every citation exactly. If the draft says access is forbidden or information is unavailable, preserve that meaning. Output plain text only.`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({ prompt, groundedDraft: draft, citations })
+        }
+      ]
+    })
+  });
+  if (!response.ok) return null;
+  const body = await response.json();
+  const content = body && body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
+  return typeof content === 'string' && content.trim() ? content.trim() : null;
 }
 
 function selectorId(sessionSecret, employeeNumber) {
@@ -303,6 +336,31 @@ function createApp(options = {}) {
       await db.deleteSession(req.signedCookies[SESSION_COOKIE]);
       clearSessionCookie(res);
       return res.status(200).json({ ok: true });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  app.post('/api/ai/compose', async (req, res, next) => {
+    try {
+      noStore(res);
+      const session = await sessionClaims(req);
+      if (!session) return res.status(401).json({ ok: false, error: 'errors.session_expired' });
+      const prompt = typeof req.body.prompt === 'string' ? req.body.prompt.trim().slice(0, 1200) : '';
+      const language = ['pt', 'en', 'zh'].includes(req.body.language) ? req.body.language : 'en';
+      const draft = typeof req.body.draft === 'string' ? req.body.draft.trim().slice(0, 16000) : '';
+      const citations = Array.isArray(req.body.citations) ? req.body.citations.filter(c => typeof c === 'string').slice(0, 20) : [];
+      if (!prompt || !draft) return res.status(400).json({ ok: false, error: 'errors.invalid_request' });
+      const answer = await generateOpenRouterAnswer({
+        apiKey: process.env.OPENROUTER_API_KEY,
+        role: session.role,
+        language,
+        prompt,
+        draft,
+        citations
+      });
+      if (!answer) return res.status(503).json({ ok: false, error: 'ai.provider_unavailable' });
+      return res.status(200).json({ ok: true, answer, model: OPENROUTER_MODEL });
     } catch (err) {
       return next(err);
     }
