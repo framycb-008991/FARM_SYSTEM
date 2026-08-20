@@ -105,6 +105,12 @@ const ROLE_INTERFACE = {
 const OPS_PANEL_ROLES = ['admin_manager', 'finance_compliance_lead', 'operations_support_lead', 'hr_facility_lead'];
 const OPS_ENTRY_ROLES = ['driver', 'warehouse_assistant', 'cook', 'cleaning_assistant'];
 
+const ACCESS_SCOPE_BY_ROLE = {
+  top_management: { level: 'access.full', description: 'access.full_desc' },
+  admin_manager: { level: 'access.full', description: 'access.full_desc' },
+  administrator: { level: 'access.limited', description: 'access.limited_desc' }
+};
+
 // Which sections each panel role may see (spec §3.1) — the sidebar renders
 // ONLY these; the API independently enforces the same scoping (§3.2).
 const OPS_ROLE_SECTIONS = {
@@ -519,6 +525,16 @@ function renderSidebarNav(roleKey) {
       </li>
     `;
   }).join('');
+
+  const accessSection = document.getElementById('sidebarAccessSection');
+  const accessLevel = document.getElementById('sidebarAccessLevel');
+  const accessDescription = document.getElementById('sidebarAccessDescription');
+  const access = ACCESS_SCOPE_BY_ROLE[roleKey];
+  if (accessSection) accessSection.hidden = !access;
+  if (access && accessLevel && accessDescription) {
+    accessLevel.textContent = t(access.level);
+    accessDescription.textContent = t(access.description);
+  }
 }
 
 function updateHeroBanner(roleKey) {

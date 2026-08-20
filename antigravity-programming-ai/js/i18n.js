@@ -2237,6 +2237,28 @@ const I18N_DICTIONARY = {
   }
 };
 
+Object.assign(I18N_DICTIONARY['pt-MZ'], {
+  'app.access_section': 'ACESSO',
+  'access.full': 'Acesso total',
+  'access.full_desc': 'Todas as áreas autorizadas',
+  'access.limited': 'Acesso limitado',
+  'access.limited_desc': 'Apenas administração e auditoria'
+});
+Object.assign(I18N_DICTIONARY['en-GB'], {
+  'app.access_section': 'ACCESS',
+  'access.full': 'Full access',
+  'access.full_desc': 'All authorised areas',
+  'access.limited': 'Limited access',
+  'access.limited_desc': 'Administration and audit only'
+});
+Object.assign(I18N_DICTIONARY['zh-TW'], {
+  'app.access_section': '存取權限',
+  'access.full': '完整存取',
+  'access.full_desc': '所有已授權區域',
+  'access.limited': '有限存取',
+  'access.limited_desc': '僅限管理與稽核'
+});
+
 let currentLocale = localStorage.getItem('preferred_locale') || 'pt-MZ';
 
 function setLocale(langCode) {

@@ -99,6 +99,7 @@ async function main() {
     check('session role is farm_technician', await ev(`AppState.claims.role === 'farm_technician'`));
     check('URL is #/pt-MZ/dashboard/technician', await ev(`location.hash === '#/pt-MZ/dashboard/technician'`));
     check('technician sees only own fields', await ev(`document.querySelectorAll('#ftMyFieldsGrid > .card').length === 2`));
+    check('technician does not see privileged access section', await ev(`document.getElementById('sidebarAccessSection').hidden`));
     check('no token persisted in sessionStorage/localStorage', await ev(`sessionStorage.length === 0 && localStorage.getItem('mecuzi_access_token') === null`));
     check('technician claims → GET /audit-logs = 403', await ev(`MockAPI.listAuditLogs(AppState.accessToken).then(r => r.status === 403)`));
 
@@ -107,10 +108,12 @@ async function main() {
     check('logout clears UI session', await ev(`!document.body.classList.contains('authenticated') && document.getElementById('authModalBackdrop').classList.contains('open')`));
     check('selector administrator login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_administrator' }));
     check('URL is #/pt-MZ/dashboard/admin', await ev(`location.hash === '#/pt-MZ/dashboard/admin'`));
+    check('administrator sees limited access section', await ev(`!document.getElementById('sidebarAccessSection').hidden && document.getElementById('sidebarAccessLevel').textContent === 'Acesso limitado'`));
     await ev(`document.getElementById('openAuthModalBtn').click()`);
     await sleep(300);
     check('selector admin manager login succeeds via server', await loginAs({ labelKey: 'auth.demo.option_admin_manager' }));
     check('URL is #/pt-MZ/dashboard/ops', await ev(`location.hash === '#/pt-MZ/dashboard/ops'`));
+    check('administrative management sees full access section', await ev(`document.getElementById('sidebarAccessLevel').textContent === 'Acesso total'`));
     for (const locale of ['pt-MZ', 'en-GB', 'zh-TW']) {
       await ev(`setLocale(${JSON.stringify(locale)})`);
       check(`${locale} selector exposes six translated labels`, await ev(`document.querySelectorAll('#demoAccountSelect option').length === 7 && [...document.querySelectorAll('#demoAccountSelect option')].slice(1).every(o => o.textContent.trim() && o.textContent !== o.dataset.i18n)`));
@@ -125,6 +128,7 @@ async function main() {
       await ev(`setLocale('pt-MZ')`);
       check(`${role} selector login succeeds`, await loginAs({ labelKey }));
       check(`${role} claim and route are server-derived`, await ev(`AppState.claims.role === ${JSON.stringify(role)} && location.hash === ${JSON.stringify(route)}`));
+      if (role === 'top_management') check('top management sees full access section', await ev(`document.getElementById('sidebarAccessLevel').textContent === 'Acesso total'`));
     }
   } finally {
     chrome.kill();

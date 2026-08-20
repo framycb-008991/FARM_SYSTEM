@@ -818,6 +818,57 @@ body:not(.authenticated) .header-utility-zone {
   }
 }
 
+.sidebar-access-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-access-title {
+  padding: 0 0.75rem 0.35rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-access-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-access-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.sidebar-access-card strong,
+.sidebar-access-card span:not(.sidebar-access-icon) {
+  display: block;
+}
+
+.sidebar-access-card strong {
+  color: #ffffff;
+  font-size: 10px;
+}
+
+.sidebar-access-card span:not(.sidebar-access-icon) {
+  margin-top: 0.1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+}
+
 @media (max-width: 600px) {
   :root {
     --header-height: 64px;
@@ -979,7 +1030,9 @@ body:not(.authenticated) .header-utility-zone {
     flex-direction: row;
     align-items: stretch;
     gap: 0.2rem;
-    min-width: max-content;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
   }
 
   .sidebar-nav-item {
@@ -1012,8 +1065,13 @@ body:not(.authenticated) .header-utility-zone {
 
   .sidebar-section-title,
   .nav-badge-pill,
-  .sidebar-footer {
+  .sidebar-footer,
+  .sidebar-access-section {
     display: none;
+  }
+
+  .sidebar-nav-list {
+    justify-content: safe center;
   }
 
   .app-main-content {
