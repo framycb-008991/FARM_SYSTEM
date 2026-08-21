@@ -344,7 +344,18 @@
   ];
 
   function planToolCalls(query) {
-    return TOOL_INTENTS.filter(ti => ti.re.test(query)).map(ti => ({ tool: ti.tool, args: {} }));
+    const value = String(query || '');
+    const procedureIntent = /\b(procedure|how do|how does|what should|when should|como funciona|qual é o procedimento|o que devo fazer|怎麼辦|如何|程序)\b/i.test(value);
+    const liveDataIntent = /\b(current|latest|live|actual|reading|readings|metrics|status|summary|trend|dados|actual|leituras|estado|resumo|tendência|即時|目前|讀數|狀態|摘要|趨勢)\b/i.test(value);
+    return TOOL_INTENTS
+      .filter(ti => ti.re.test(value))
+      // A procedure question should be answered from the SOP alone unless the
+      // user explicitly asks for current/live system data. This prevents a
+      // permitted SOP answer from being polluted by an unrelated 403.
+      .filter(ti => !(procedureIntent && !liveDataIntent &&
+        ['get_borehole_metrics', 'get_field_status', 'get_inventory_levels',
+          'get_budget_variance', 'get_sync_status', 'get_climate_alerts'].includes(ti.tool)))
+      .map(ti => ({ tool: ti.tool, args: {} }));
   }
 
   /* ==========================================================================

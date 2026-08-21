@@ -653,6 +653,9 @@ const I18N_DICTIONARY = {
     'copilot.chip_water': 'Furo >120%',
     'copilot.chip_sync': 'Sincronização Offline',
     'copilot.chip_pin': 'Reset de PIN',
+    'copilot.prompt_water': 'Qual é o procedimento para o Furo 2 com consumo superior a 120%?',
+    'copilot.prompt_sync': 'Como funciona a sincronização de relatórios offline?',
+    'copilot.prompt_pin': 'Como resetar o PIN de um técnico?',
     'copilot.input_placeholder': 'Pergunte ao assistente...',
     'copilot.btn_send': 'Enviar',
 
@@ -1434,6 +1437,9 @@ const I18N_DICTIONARY = {
     'copilot.chip_water': 'Borehole >120%',
     'copilot.chip_sync': 'Offline Sync',
     'copilot.chip_pin': 'PIN Reset',
+    'copilot.prompt_water': 'What is the procedure when Borehole 2 consumption exceeds 120%?',
+    'copilot.prompt_sync': 'How does offline report synchronization work?',
+    'copilot.prompt_pin': 'How do I reset a technician’s PIN?',
     'copilot.input_placeholder': 'Ask the copilot...',
     'copilot.btn_send': 'Send',
 
@@ -2215,6 +2221,9 @@ const I18N_DICTIONARY = {
     'copilot.chip_water': '水井超標 >120%',
     'copilot.chip_sync': '離線同步機制',
     'copilot.chip_pin': 'PIN碼重設流程',
+    'copilot.prompt_water': '水井 2 用量超過 120% 時的處理程序是什麼？',
+    'copilot.prompt_sync': '離線報告同步如何運作？',
+    'copilot.prompt_pin': '如何重設技術員的 PIN 碼？',
     'copilot.input_placeholder': '請輸入您的問題...',
     'copilot.btn_send': '送出',
 

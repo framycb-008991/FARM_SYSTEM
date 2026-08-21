@@ -323,6 +323,7 @@ function initApp() {
   if (copilotBtn) {
     copilotBtn.addEventListener('click', openCopilot);
   }
+  setupCopilotPrompts();
 
   // 6. Alert bar toggle
   setupAlertBarToggle();
@@ -2156,6 +2157,15 @@ function exportCouncilBriefingPdf() {
 function openCopilot() {
   document.getElementById('copilotOverlay')?.classList.add('open');
   document.getElementById('copilotDrawer')?.classList.add('open');
+}
+
+function setupCopilotPrompts() {
+  document.querySelectorAll('[data-copilot-prompt-key]').forEach(button => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.copilotPromptKey;
+      if (key) sendCopilotPrompt(t(key));
+    });
+  });
 }
 
 function closeCopilot() {
