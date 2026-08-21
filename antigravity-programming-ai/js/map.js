@@ -22,7 +22,7 @@
   // Esri World Imagery — keyless satellite basemap suitable for field work
   const TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
   const TILE_ATTR = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics';
-  const MECUZI_CENTER = [-24.193, 34.738]; // farm centroid
+  const MECUZI_CENTER = [-19.343234, 34.058093]; // requested farm location
   const QUEUE_KEY = 'mecuzi_plot_sync_queue';
 
   // Color-coding: deterministic per crop type (executive map legend, §C).
@@ -151,14 +151,27 @@
     return plots;
   }
 
-  /* --- Mode 1: Read-only executive view (deliverable C) --------------------- */
-  async function initReadOnly(containerId) {
-    whenLeafletReady(containerId, async () => {
-      const inst = initBase(containerId);
-      setTimeout(() => inst.map.invalidateSize(), 50); // hidden tab-pane sizing
-      await renderPlots(inst, null).catch(() => {});
-    });
-    return instances[containerId] || null;
+  /* --- Google Maps read-only executive view ------------------------------- */
+  const FARM_COORDINATES = '-19.343234,34.058093';
+  const MAP_EMBED_URL = `https://www.google.com/maps?q=${FARM_COORDINATES}&z=15&output=embed`;
+  const googleEmbedInstances = {};
+
+  function initReadOnly(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+    if (googleEmbedInstances[containerId]) return googleEmbedInstances[containerId];
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'farm-map-embed';
+    iframe.src = MAP_EMBED_URL;
+    iframe.title = 'Google Maps — Mecuzi farm location';
+    iframe.loading = 'lazy';
+    iframe.referrerPolicy = 'no-referrer-when-downgrade';
+    iframe.allowFullscreen = true;
+    container.replaceChildren(iframe);
+
+    googleEmbedInstances[containerId] = { container, iframe };
+    return googleEmbedInstances[containerId];
   }
 
   /* --- Mode 2: Editor (deliverable B) --------------------------------------- */
@@ -353,3 +366,4 @@
   global.FarmMap = { initReadOnly, initEditor, flushQueue, readQueue };
 
 })(typeof window !== 'undefined' ? window : globalThis);
+

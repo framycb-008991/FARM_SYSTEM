@@ -593,9 +593,9 @@ function switchTab(tabId) {
     targetPane.classList.add('active');
   }
 
-  // GIS plot map: initialize/refresh when a map tab becomes visible (Leaflet
-  // needs a visible container to compute its size). The API enforces the
-  // editor/executive boundary; the mode here is presentation only.
+  // GIS plot map: initialize when a map tab becomes visible. Editor tabs use
+  // Leaflet so GPS capture, polygon editing, and offline sync remain active;
+  // the executive tab uses the Google Maps embed.
   if (typeof FarmMap !== 'undefined') {
     if (tabId === 'ft_map') FarmMap.initEditor('ftMapEditor');
     else if (tabId === 'pm_map') FarmMap.initEditor('pmMapEditor');

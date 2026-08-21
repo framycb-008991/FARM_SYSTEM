@@ -759,7 +759,7 @@ const I18N_DICTIONARY = {
     'errors.copilot_unavailable': 'Módulo do Assistente AI indisponível.',
     'errors.sop_empty': 'Documento SOP vazio ou sem secções válidas.',
 
-    // 25. GIS Plot Map (Leaflet — captura GPS e mapa executivo)
+    // 25. GIS Plot Map (Google Maps embed)
     'nav.ft_map': 'Mapa de Talhões',
     'nav.pm_map': 'Mapa de Talhões',
     'map.title_editor': 'Mapa de Talhões — Captura GPS & Polígonos',
@@ -1552,7 +1552,7 @@ const I18N_DICTIONARY = {
     'errors.copilot_unavailable': 'AI Assistant module unavailable.',
     'errors.sop_empty': 'SOP document empty or has no valid sections.',
 
-    // 25. GIS Plot Map (Leaflet — GPS capture + executive map)
+    // 25. GIS Plot Map (Google Maps embed)
     'nav.ft_map': 'Plot Map',
     'nav.pm_map': 'Plot Map',
     'map.title_editor': 'Plot Map — GPS Capture & Polygons',
@@ -2345,7 +2345,7 @@ const I18N_DICTIONARY = {
     'errors.copilot_unavailable': 'AI 助理模組無法使用。',
     'errors.sop_empty': 'SOP 文件為空或無有效章節。',
 
-    // 25. GIS Plot Map (Leaflet — GPS 擷取與主管地圖)
+    // 25. GIS Plot Map (Google Maps embed)
     'nav.ft_map': '田塊地圖',
     'nav.pm_map': '田塊地圖',
     'map.title_editor': '田塊地圖 — GPS 擷取與多邊形',
