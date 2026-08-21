@@ -126,6 +126,7 @@ function noStore(res) {
 
 async function generateOpenRouterAnswer({ apiKey, role, language, prompt, draft, citations }) {
   if (!apiKey) return null;
+  const languageName = { pt: 'Mozambican Portuguese', en: 'UK English', zh: 'Traditional Chinese' }[language] || 'UK English';
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     signal: AbortSignal.timeout(20000),
@@ -141,7 +142,7 @@ async function generateOpenRouterAnswer({ apiKey, role, language, prompt, draft,
       messages: [
         {
           role: 'system',
-          content: `You are the FARM_SYSTEM demo assistant. Reply only in ${language}. The authenticated role is ${role}. Rewrite the grounded draft into a concise operational answer. Do not add facts, figures, permissions, users, or recommendations absent from the draft. Preserve every citation exactly. If the draft says access is forbidden or information is unavailable, preserve that meaning. Output plain text only.`
+          content: `You are the FARM_SYSTEM demo assistant. Reply exclusively in ${languageName} (language code: ${language}); do not translate into another language. The authenticated role is ${role}. Rewrite the grounded draft into a concise operational answer. Do not add facts, figures, permissions, users, or recommendations absent from the draft. Preserve every citation exactly. If the draft says access is forbidden or information is unavailable, preserve that meaning. Output plain text only.`
         },
         {
           role: 'user',

@@ -183,8 +183,11 @@
      §6 — DYNAMIC LANGUAGE DETECTION (from the message payload, never the UI)
      ========================================================================== */
   function detectLanguage(text) {
-    if (/[一-鿿㐀-䶿]/.test(text)) return 'zh';
-    const words = (String(text).toLowerCase().match(/[a-zà-ÿ]+/gi) || []);
+    const input = String(text || '');
+    // Script detection must run before word scoring. This handles Traditional
+    // Chinese questions even when they contain Latin product names or numbers.
+    if (/[\u3400-\u9fff]/.test(input)) return 'zh';
+    const words = (input.toLocaleLowerCase().match(/[a-zà-ÿ]+/gi) || []);
     const PT = new Set(['que', 'qual', 'quais', 'como', 'quando', 'onde', 'para', 'com', 'sem',
       'uma', 'são', 'esta', 'está', 'furo', 'talhão', 'talhões', 'orçamento', 'incêndio',
       'fumo', 'fogo', 'chuva', 'relatório', 'relatórios', 'sincronização', 'não', 'meu',
@@ -203,6 +206,9 @@
     ['quem', 'ganhou', 'isso', 'isto', 'sobre', 'dados', 'risco', 'resumo'].forEach(word => PT.add(word));
     let pt = 0, en = 0;
     words.forEach(w => { if (PT.has(w)) pt++; if (EN.has(w)) en++; });
+    // Accented Portuguese is a strong signal and avoids English being selected
+    // for short questions such as “Qual é o estado...?”.
+    if (/[ãõáàâçéêíóôú]/i.test(input)) pt += 2;
     return en > pt ? 'en' : 'pt'; // default: system primary language (pt-MZ)
   }
 
@@ -217,6 +223,7 @@
       unknown: 'Não tenho acesso a essa informação no SOP nem nos dados em tempo real do sistema.',
       forbidden: 'O seu papel não tem permissão para estes dados — o sistema recusou o acesso (403). Contacte o Administrador se precisar deste acesso.',
       labels: {
+        get_management_summary: 'Resumo executivo', get_management_trends: 'Tendências de produção',
         get_borehole_metrics: 'Leituras dos furos', get_field_status: 'Estado dos talhões',
         get_inventory_levels: 'Níveis de inventário', get_budget_variance: 'Desvio orçamental',
         get_sync_status: 'Estado de sincronização', get_climate_alerts: 'Alertas climáticos'
@@ -236,6 +243,7 @@
       unknown: 'I do not have access to this information in the SOP or live system data.',
       forbidden: 'Your role does not have permission for this data — the backend refused access (403). Contact an Administrator if you need it.',
       labels: {
+        get_management_summary: 'Executive summary', get_management_trends: 'Production trends',
         get_borehole_metrics: 'Borehole readings', get_field_status: 'Field status',
         get_inventory_levels: 'Inventory levels', get_budget_variance: 'Budget variance',
         get_sync_status: 'Sync status', get_climate_alerts: 'Climate alerts'
@@ -255,6 +263,7 @@
       unknown: '我無法從 SOP 或即時系統資料中取得此資訊。',
       forbidden: '您的角色無權存取此資料 — 後端已拒絕存取（403）。如需權限請聯絡管理員。',
       labels: {
+        get_management_summary: '執行摘要', get_management_trends: '生產趨勢',
         get_borehole_metrics: '水井讀數', get_field_status: '田塊狀態',
         get_inventory_levels: '庫存水位', get_budget_variance: '預算差異',
         get_sync_status: '同步狀態', get_climate_alerts: '氣候警報'
@@ -276,6 +285,8 @@
      OpenAI/Vercel-AI-SDK-style function signatures.
      ========================================================================== */
   const COPILOT_TOOLS = [
+    { name: 'get_management_summary', description: 'Top Management aggregate production, KPI and reporting summary (read-only)', parameters: { type: 'object', properties: {}, required: [] } },
+    { name: 'get_management_trends', description: 'Top Management aggregate production trends (read-only)', parameters: { type: 'object', properties: {}, required: [] } },
     { name: 'get_borehole_metrics', description: 'Latest borehole/water-meter readings vs 30-day averages (Operations Support)', parameters: { type: 'object', properties: {}, required: [] } },
     { name: 'get_field_status', description: 'Field/plot status list (role-scoped by the backend)', parameters: { type: 'object', properties: {}, required: [] } },
     { name: 'get_inventory_levels', description: 'Agricultural input inventory levels and low-stock flags', parameters: { type: 'object', properties: {}, required: [] } },
@@ -290,6 +301,10 @@
   async function executeCopilotTool(name, args, authToken) {
     let res;
     switch (name) {
+      case 'get_management_summary':
+        res = await global.MockAPI.getReportsSummary(authToken); break;
+      case 'get_management_trends':
+        res = await global.MockAPI.getReportsTrends(authToken); break;
       case 'get_borehole_metrics':
         res = await global.MockAPI.listUnitRecords(authToken, 'borehole_reading'); break;
       case 'get_field_status':
@@ -318,6 +333,8 @@
   /* --- Deterministic planner (demo build) — the production LLM replaces
          this intent mapping; tool schemas above are its function list. --- */
   const TOOL_INTENTS = [
+    { tool: 'get_management_trends', re: /trend|tend[eê]ncia|evolu[cç][aã]o|monthly|mensal/i },
+    { tool: 'get_management_summary', re: /production|produ[cç][aã]o|yield|rendimento|kpi|executive|executivo|management report|relat[oó]rio (?:executivo|geral)/i },
     { tool: 'get_borehole_metrics', re: /furo|borehole|水井|井水|水錶|consumo de água/i },
     { tool: 'get_field_status', re: /talh[aã]o|talhões|field status|plot|田塊|田區|estado dos/i },
     { tool: 'get_inventory_levels', re: /invent[aá]rio|stock|庫存|存貨|insumos|fertiliz/i },
@@ -352,6 +369,16 @@
   function summarizeTool(ex, S) {
     const d = ex.data;
     switch (ex.tool) {
+      case 'get_management_summary':
+      case 'get_management_trends': {
+        const rows = Array.isArray(d) ? d : [];
+        if (!rows.length) return S.unknown;
+        return rows.map(r => {
+          const actual = Number(r.cajuKg || 0) + Number(r.feijaoKg || 0);
+          const target = Number(r.targetKg || 0);
+          return `${r.periodKey || r.period || ''}: ${actual.toLocaleString()} kg / ${target.toLocaleString()} kg`;
+        }).join('\n');
+      }
       case 'get_borehole_metrics':
         return d.map(r => `${S.boreholeLine(r)} — ${S.status[r.status] || r.status}`).join('\n');
       case 'get_field_status':
@@ -409,6 +436,20 @@
     return sections.join('\n\n');
   }
 
+  function replyMatchesLanguage(reply, language) {
+    const value = String(reply || '');
+    if (language === 'zh') return (value.match(/[\u3400-\u9fff]/g) || []).length >= 2;
+    const words = value.toLocaleLowerCase().match(/[a-zà-ÿ]+/gi) || [];
+    const markers = language === 'pt'
+      ? ['dados', 'procedimento', 'sistema', 'acesso', 'não', 'relatório', 'produção', 'estado']
+      : ['the', 'system', 'data', 'procedure', 'access', 'report', 'production', 'status'];
+    const other = language === 'pt'
+      ? ['the', 'system', 'data', 'procedure', 'access', 'report', 'production', 'status']
+      : ['dados', 'procedimento', 'sistema', 'acesso', 'não', 'relatório', 'produção', 'estado'];
+    const score = list => words.reduce((n, word) => n + (list.includes(word) ? 1 : 0), 0);
+    return score(markers) > 0 && score(markers) >= score(other);
+  }
+
   /* ==========================================================================
      §4/§5/§8 — CORE AGENT HANDLER (the unified pipeline; quick-reply chips
      feed straight into this, per §4)
@@ -437,7 +478,10 @@
           reply,
           retrieved.map(r => `SOP ${r.chunk.section_ref}`)
         );
-        if (composed && composed.ok && typeof composed.data.answer === 'string') reply = composed.data.answer;
+        if (composed && composed.ok && typeof composed.data.answer === 'string' &&
+            replyMatchesLanguage(composed.data.answer, language)) {
+          reply = composed.data.answer;
+        }
       } catch (e) { /* provider failure must not break the grounded response */ }
     }
     const latencyMs = Date.now() - started;
