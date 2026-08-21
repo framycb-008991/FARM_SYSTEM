@@ -9,3 +9,7 @@ Antigravity Programming & AI/npm-debug.log*
 
 # Dependencies (nested app dir)
 antigravity-programming-ai/node_modules/
+
+# Browser validation artifacts
+.playwright-cli/
+output/playwright/
