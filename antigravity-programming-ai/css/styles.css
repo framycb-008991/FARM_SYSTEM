@@ -796,6 +796,22 @@ body:not(.authenticated) .header-utility-zone {
 
 /* Investor presentation layer: compact on desktop, horizontally scrollable on phones. */
 .investor-overview { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1rem; }
+.institutional-packages { margin-top: 1rem; padding: 1.1rem; background: #f3f7f0; border: 1px solid #d8e5d2; border-radius: 16px; }
+.package-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.95rem; }
+.package-heading h3 { margin: 0.2rem 0 0.25rem; font-size: 1.05rem; color: var(--color-primary-dark); }
+.package-heading p { max-width: 62ch; margin: 0; color: var(--color-text-muted); font-size: 0.75rem; line-height: 1.55; }
+.package-period { padding-top: 0.15rem; color: var(--color-text-muted); font: 600 0.64rem ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; }
+.package-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 0.7rem; }
+.package-card { display: flex; flex-direction: column; min-height: 185px; padding: 0.9rem; background: var(--color-surface); border: 1px solid #d8e5d2; border-radius: 12px; transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+.package-card:hover { transform: translateY(-2px); border-color: #9dbb91; box-shadow: 0 12px 24px rgba(29, 70, 22, 0.1); }
+.package-card-top { display: flex; justify-content: space-between; align-items: center; }
+.package-mark { color: var(--color-primary-dark); font: 700 0.67rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+.package-format { color: var(--color-accent); font: 700 0.6rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 0.08em; }
+.package-card h4 { margin: 1.2rem 0 0.35rem; color: var(--color-primary-dark); font-size: 0.9rem; }
+.package-card p { margin: 0; color: var(--color-text-muted); font-size: 0.7rem; line-height: 1.55; }
+.package-card-dark { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }.package-card-dark h4, .package-card-dark .package-mark { color: #fff; }.package-card-dark p { color: #d9e7d5; }.package-card-dark .package-format { color: #d9c58b; }
+.package-action { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: auto; padding: 0.65rem 0 0; color: var(--color-primary-dark); background: transparent; border: 0; border-top: 1px solid #e0e9dc; font: 600 0.68rem var(--font-body, sans-serif); text-align: left; cursor: pointer; }.package-action:hover { color: var(--color-accent); }.package-card-dark .package-action { color: #fff; border-top-color: rgba(255,255,255,0.2); }.package-card-dark .package-action:hover { color: #f0d993; }
+.package-note { display: flex; align-items: center; gap: 0.45rem; margin: 0.85rem 0 0; color: var(--color-text-muted); font-size: 0.65rem; }.package-note span:first-child { display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid #b5c9ad; border-radius: 50%; font: 700 0.62rem Georgia; }
 .investor-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.2rem 0 0.35rem; }
 .investor-heading h2 { font-size: clamp(1.35rem, 2.8vw, 2rem); margin: 0.15rem 0; }
 .investor-subtitle { color: var(--color-text-muted); font-size: 0.78rem; }
@@ -1111,6 +1127,9 @@ body:not(.authenticated) .header-utility-zone {
   .investor-panel { border-radius: 13px; padding: 0.8rem; }
   .investor-kpi { min-width: 142px; }
   .scenario-controls { grid-template-columns: 1fr; }
+  .package-heading { flex-direction: column; gap: 0.35rem; }
+  .package-grid { grid-template-columns: 1fr; }
+  .package-card { min-height: 160px; }
 
   .role-hero-banner {
     padding: 0.85rem 1rem;

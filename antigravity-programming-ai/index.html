@@ -406,17 +406,37 @@
               </div>
             </div>
 
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" data-i18n="tm.donors_title">Pacotes de Relatório Institucional (Doadores)</span>
+            <section class="institutional-packages" aria-labelledby="institutionalPackagesTitle">
+              <div class="package-heading">
+                <div>
+                  <span class="eyebrow" data-i18n="tm.donors_kicker">INSTITUTIONAL REPORTING</span>
+                  <h3 id="institutionalPackagesTitle" data-i18n="tm.donors_title">Pacotes de Relatório Institucional (Doadores)</h3>
+                  <p data-i18n="tm.donors_desc">Gere automaticamente relatórios em PDF, Excel ou PowerPoint formatados segundo as diretrizes da Fundação Tzu Chi.</p>
+                </div>
+                <span class="package-period" data-i18n="tm.donors_period">2026 · recorded period</span>
               </div>
-              <p style="font-size: 12px; color: var(--color-text-muted);" data-i18n="tm.donors_desc">Gere automaticamente relatórios em PDF, Excel ou PowerPoint formatados segundo as diretrizes da Fundação Tzu Chi.</p>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                <button class="btn btn-secondary" onclick="exportPDFReport()" data-i18n="tm.btn_download_dossier">Descarregar Dossiê Mensal (.PDF)</button>
-                <button class="btn btn-secondary" onclick="exportCSVReport()" data-i18n="tm.btn_export_ledger">Exportar Base de Dados Estruturada (.CSV)</button>
-                    <button class="btn btn-primary" onclick="exportCouncilBriefingPdf()" data-i18n="tm.btn_council_report">Relatório para o Conselho (繁體中文)</button>
+              <div class="package-grid">
+                <article class="package-card package-card-featured">
+                  <div class="package-card-top"><span class="package-mark">01</span><span class="package-format">PDF</span></div>
+                  <h4 data-i18n="tm.donors_dossier_title">Monthly production dossier</h4>
+                  <p data-i18n="tm.donors_dossier_desc">Executive conclusion, production trend, target attainment, value context and risk watch.</p>
+                  <button class="package-action" onclick="exportPDFReport()"><span data-i18n="tm.btn_download_dossier">Descarregar Dossiê Mensal</span><span aria-hidden="true">↗</span></button>
+                </article>
+                <article class="package-card">
+                  <div class="package-card-top"><span class="package-mark">02</span><span class="package-format">CSV</span></div>
+                  <h4 data-i18n="tm.donors_ledger_title">Structured production ledger</h4>
+                  <p data-i18n="tm.donors_ledger_desc">Machine-readable monthly output, targets, attainment and recorded value for reconciliation.</p>
+                  <button class="package-action" onclick="exportCSVReport()"><span data-i18n="tm.btn_export_ledger">Export structured ledger</span><span aria-hidden="true">↗</span></button>
+                </article>
+                <article class="package-card package-card-dark">
+                  <div class="package-card-top"><span class="package-mark">03</span><span class="package-format">繁體中文</span></div>
+                  <h4 data-i18n="tm.donors_council_title">Council briefing pack</h4>
+                  <p data-i18n="tm.donors_council_desc">Board-ready summary with performance, governance context and risk language.</p>
+                  <button class="package-action" onclick="exportCouncilBriefingPdf()"><span data-i18n="tm.btn_council_report">Council briefing pack</span><span aria-hidden="true">↗</span></button>
+                </article>
               </div>
-            </div>
+              <p class="package-note"><span aria-hidden="true">i</span><span data-i18n="tm.donors_note">All figures are recorded operational evidence and remain subject to validation.</span></p>
+            </section>
           </div>
         </div>
 
