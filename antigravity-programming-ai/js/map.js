@@ -24,7 +24,7 @@
   const TILE_ATTR = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics';
   const MECUZI_CENTER = [-19.343234, 34.058093]; // requested farm location
   const MAP_ZOOM = 17;
-  const MAP_MAX_ZOOM = 22;
+  const MAP_MAX_ZOOM = 32;
   const TILE_MAX_NATIVE_ZOOM = 19;
   const QUEUE_KEY = 'mecuzi_plot_sync_queue';
 
