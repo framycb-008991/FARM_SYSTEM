@@ -145,15 +145,16 @@
         if (onPlotClick) layer.on('click', () => onPlotClick(f.properties));
       }
     }).addTo(inst.layerGroup);
-    if (plots.length) {
-      try { inst.map.fitBounds(gj.getBounds().pad(0.15)); } catch (e) { /* single point */ }
-    }
+    // Keep every map focused on the configured farm location. Fitting to
+    // stored plot bounds could move the viewport away from the requested
+    // coordinates when existing plots are elsewhere in the dataset.
+    inst.map.setView(MECUZI_CENTER, 15);
     return plots;
   }
 
   /* --- Google Maps read-only executive view ------------------------------- */
   const FARM_COORDINATES = '-19.343234,34.058093';
-  const MAP_EMBED_URL = `https://www.google.com/maps?q=${FARM_COORDINATES}&z=15&output=embed`;
+  const MAP_EMBED_URL = `https://maps.google.com/maps?ll=${FARM_COORDINATES}&q=${FARM_COORDINATES}&z=15&output=embed`;
   const googleEmbedInstances = {};
 
   function initReadOnly(containerId) {
@@ -366,4 +367,3 @@
   global.FarmMap = { initReadOnly, initEditor, flushQueue, readQueue };
 
 })(typeof window !== 'undefined' ? window : globalThis);
-
