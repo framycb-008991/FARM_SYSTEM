@@ -23,6 +23,9 @@
   const TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
   const TILE_ATTR = 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics';
   const MECUZI_CENTER = [-19.343234, 34.058093]; // requested farm location
+  const MAP_ZOOM = 17;
+  const MAP_MAX_ZOOM = 22;
+  const TILE_MAX_NATIVE_ZOOM = 19;
   const QUEUE_KEY = 'mecuzi_plot_sync_queue';
 
   // Color-coding: deterministic per crop type (executive map legend, §C).
@@ -128,8 +131,24 @@
 
   function initBase(containerId) {
     if (instances[containerId]) return instances[containerId];
-    const map = L.map(containerId, { center: MECUZI_CENTER, zoom: 15, zoomControl: true });
-    L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 19 }).addTo(map);
+    const map = L.map(containerId, {
+      center: MECUZI_CENTER,
+      zoom: MAP_ZOOM,
+      minZoom: 3,
+      maxZoom: MAP_MAX_ZOOM,
+      zoomControl: true,
+      zoomSnap: 1,
+      zoomDelta: 1
+    });
+    L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTR,
+      // Reuse the provider's highest native tiles when zooming deeper. This
+      // avoids unsupported tile requests and keeps the map usable at z20–22.
+      maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+      maxZoom: MAP_MAX_ZOOM,
+      keepBuffer: 3,
+      updateWhenZooming: false
+    }).addTo(map);
     const layerGroup = L.layerGroup().addTo(map);
     instances[containerId] = { map, layerGroup };
     return instances[containerId];
@@ -148,7 +167,7 @@
     // Keep every map focused on the configured farm location. Fitting to
     // stored plot bounds could move the viewport away from the requested
     // coordinates when existing plots are elsewhere in the dataset.
-    inst.map.setView(MECUZI_CENTER, 15);
+    inst.map.setView(MECUZI_CENTER, MAP_ZOOM);
     return plots;
   }
 
