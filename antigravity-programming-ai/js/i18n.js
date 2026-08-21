@@ -2428,7 +2428,8 @@ Object.assign(I18N_DICTIONARY['zh-TW'], {
   'tm.export_council_success': '理事會簡報已下載。'
 });
 
-let currentLocale = localStorage.getItem('preferred_locale') || 'pt-MZ';
+// New users start in English; returning users keep their saved preference.
+let currentLocale = localStorage.getItem('preferred_locale') || 'en-GB';
 
 function setLocale(langCode) {
   if (!I18N_DICTIONARY[langCode]) return;
