@@ -2022,7 +2022,57 @@ function buildSimplePdf(lines) {
   return pdf;
 }
 
+function escapeReportHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function printInstitutionalReport({ title, subtitle, locale, metrics, sections }) {
+  const metricHtml = metrics.map(metric => `<div class="metric"><span>${escapeReportHtml(metric.label)}</span><strong>${escapeReportHtml(metric.value)}</strong><small>${escapeReportHtml(metric.note || '')}</small></div>`).join('');
+  const sectionHtml = sections.map(section => `<section class="report-section"><h2>${escapeReportHtml(section.title)}</h2>${section.html || `<p>${escapeReportHtml(section.body || '')}</p>`}</section>`).join('');
+  const html = `<!doctype html><html lang="${escapeReportHtml(locale)}"><head><meta charset="utf-8"><title>${escapeReportHtml(title)}</title><style>
+    @page{size:A4;margin:15mm 14mm 17mm}*{box-sizing:border-box}body{margin:0;color:#183018;background:#fff;font-family:Arial,"Noto Sans",sans-serif;font-size:10.5pt;line-height:1.45}header{border-top:10px solid #0d3600;padding:22px 0 18px;border-bottom:1px solid #cbdac6}header h1{margin:0;color:#0d3600;font-size:25px;letter-spacing:-.03em}header p{margin:7px 0 0;color:#667362;font-size:10px}.brand{float:right;color:#0d3600;font-size:9px;font-weight:bold;letter-spacing:.13em;text-transform:uppercase}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0}.metric{min-height:72px;padding:10px;background:#f0f6ed;border:1px solid #d5e2d0;border-radius:5px}.metric span,.metric small{display:block;color:#6b7768;font-size:8px}.metric strong{display:block;margin:5px 0;color:#0d3600;font-size:17px;line-height:1.1}.report-section{margin:18px 0;break-inside:avoid}.report-section h2{margin:0 0 8px;padding:7px 9px;background:#e1eddd;color:#0d3600;font-size:11px;letter-spacing:.08em;text-transform:uppercase}.report-section p{margin:0 0 8px}.report-section table{width:100%;border-collapse:collapse;font-size:9px}.report-section th{padding:7px 6px;background:#0d3600;color:#fff;text-align:left;font-size:8px;letter-spacing:.05em;text-transform:uppercase}.report-section td{padding:6px;border-bottom:1px solid #dbe5d8}.report-section tr:nth-child(even) td{background:#f6f9f5}.right{text-align:right}.note{color:#6b7768;font-size:8.5px}.footer{margin-top:24px;padding-top:8px;border-top:1px solid #cbdac6;color:#778273;font-size:8px;display:flex;justify-content:space-between}.warning{border-left:3px solid #bd8d2b;padding:7px 10px;background:#fbf7ec}.zh{font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif}.zh .report-section h2{text-transform:none;letter-spacing:.02em}.zh .report-section table{font-size:10px}@media print{a{color:inherit;text-decoration:none}}\n+  </style></head><body class="${locale === 'zh-TW' ? 'zh' : ''}"><header><span class="brand">Mecuzi Farm Management</span><h1>${escapeReportHtml(title)}</h1><p>${escapeReportHtml(subtitle)}</p></header><div class="metrics">${metricHtml}</div>${sectionHtml}<div class="footer"><span>Recorded operational evidence · pending validation</span><span>${escapeReportHtml(new Date().toLocaleDateString(locale))}</span></div></body></html>`;
+  const preview = window.open('', '_blank');
+  if (!preview) { showToast('Enable pop-ups to print the report.', 'error'); return; }
+  preview.document.open(); preview.document.write(html); preview.document.close();
+  preview.onafterprint = () => preview.close();
+  setTimeout(() => { preview.focus(); preview.print(); }, 400);
+}
+
 function exportPDFReport() {
+  const rows = MECUZI_DATA.yieldData || [];
+  const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
+  const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
+  const recordedValue = rows.reduce((sum, row) => sum + row.totalValueMzn, 0);
+  const attainment = targetKg ? totalKg / targetKg * 100 : 0;
+  const firstTotal = rows.length ? rows[0].cajuKg + rows[0].feijaoKg : 0;
+  const lastTotal = rows.length ? rows[rows.length - 1].cajuKg + rows[rows.length - 1].feijaoKg : 0;
+  const growth = firstTotal ? (lastTotal / firstTotal - 1) * 100 : 0;
+  const best = rows.reduce((a, b) => (a.cajuKg + a.feijaoKg) > (b.cajuKg + b.feijaoKg) ? a : b, rows[0] || {});
+  const money = value => `MZN ${Number(value || 0).toLocaleString('en-GB')}`;
+  const totalTonnes = (totalKg / 1000).toFixed(1);
+  const targetTonnes = (targetKg / 1000).toFixed(1);
+  const variance = (totalKg - targetKg) / 1000;
+  printInstitutionalReport({
+    title: 'Monthly production dossier',
+    subtitle: `Mecuzi Farm Management · 2026 year to date · Prepared ${new Date().toLocaleDateString('en-GB')}`,
+    locale: 'en-GB',
+    metrics: [
+      { label: 'Recorded production', value: `${totalTonnes} t`, note: `${attainment.toFixed(1)}% of target` },
+      { label: 'Target', value: `${targetTonnes} t`, note: `${variance >= 0 ? '+' : ''}${variance.toFixed(1)} t variance` },
+      { label: 'Recorded value', value: money(recordedValue), note: `${money(recordedValue / (rows.length || 1))} monthly average` },
+      { label: 'Best month', value: best.periodKey ? t(best.periodKey) : '—', note: `${best.cajuKg && best.feijaoKg ? ((best.cajuKg + best.feijaoKg) / 1000).toFixed(1) : '0.0'} t recorded` }
+    ],
+    sections: [
+      { title: 'Executive conclusion', body: `Recorded production reached ${totalTonnes} tonnes against a ${targetTonnes}-tonne target, representing ${attainment.toFixed(1)}% attainment and a ${variance >= 0 ? '+' : ''}${variance.toFixed(1)}-tonne variance. Output changed from ${(firstTotal / 1000).toFixed(1)} tonnes in ${rows[0] ? t(rows[0].periodKey) : 'the first period'} to ${(lastTotal / 1000).toFixed(1)} tonnes in ${rows[rows.length - 1] ? t(rows[rows.length - 1].periodKey) : 'the latest period'} (${growth.toFixed(0)}% change).` },
+      { title: 'Monthly production performance', html: `<table><thead><tr><th>Period</th><th class="right">Output</th><th class="right">Target</th><th class="right">Attainment</th><th class="right">Recorded value</th></tr></thead><tbody>${rows.map(row => { const output = row.cajuKg + row.feijaoKg; return `<tr><td>${escapeReportHtml(t(row.periodKey))}</td><td class="right">${(output / 1000).toFixed(1)} t</td><td class="right">${(row.targetKg / 1000).toFixed(1)} t</td><td class="right">${(output / row.targetKg * 100).toFixed(0)}%</td><td class="right">${money(row.totalValueMzn)}</td></tr>`; }).join('')}</tbody></table>` },
+      { title: 'Production insights', body: `Cashew contributed ${((rows.reduce((sum, row) => sum + row.cajuKg, 0) / totalKg) * 100 || 0).toFixed(1)}% of recorded volume. The reporting record supports continued scale-up, subject to validation of pricing, costs, quality and sales contracts.` },
+      { title: 'Risk and mitigation watch', html: `<p class="warning">${(MECUZI_DATA.climateAlerts || []).filter(alert => alert.severity === 'critical' && !alert.resolvedAt).length} unresolved critical operational alerts are recorded. Management should protect exposed harvest and drying stock, maintain field inspection coverage and confirm contingency logistics before the next harvest window.</p>` },
+      { title: 'Evidence and scope', body: 'This dossier is calculated from the FARM_SYSTEM production ledger and operational alert records. Recorded production value is not presented as audited revenue or profit; reconciliation should include prices, costs, inventory movements and signed sales evidence.' }
+    ]
+  });
+}
+
+function exportPDFReportLegacy() {
   const rows = MECUZI_DATA.yieldData;
   const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
   const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
@@ -2154,6 +2204,32 @@ function buildTraditionalChinesePdf(lines) {
 }
 
 function exportCouncilBriefingPdf() {
+  const rows = MECUZI_DATA.yieldData || [];
+  const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
+  const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
+  const valueMzn = rows.reduce((sum, row) => sum + row.totalValueMzn, 0);
+  const fmt = value => Number(value || 0).toLocaleString('zh-TW');
+  const periodNames = ['\u4e00\u6708', '\u4e8c\u6708', '\u4e09\u6708', '\u56db\u6708', '\u4e94\u6708', '\u516d\u6708'];
+  printInstitutionalReport({
+    title: '\u7406\u4e8b\u6703\u7c21\u5831',
+    subtitle: `\u6885\u5eab\u9f4a\u8fb2\u5834\u7ba1\u7406\u7cfb\u7d71 · 2026 \u5e74\u751f\u7522\u6458\u8981`,
+    locale: 'zh-TW',
+    metrics: [
+      { label: '\u7d2f\u8a08\u5be6\u969b\u7522\u91cf', value: `${fmt(totalKg / 1000)} \u5678`, note: `\u76ee\u6a19\u9054\u6210\u7387 ${(totalKg / targetKg * 100).toFixed(1)}%` },
+      { label: '\u7d2f\u8a08\u751f\u7522\u76ee\u6a19', value: `${fmt(targetKg / 1000)} \u5678`, note: `\u5dee\u984d ${fmt((totalKg - targetKg) / 1000)} \u5678` },
+      { label: '\u5df2\u8a18\u9304\u751f\u7522\u50f9\u503c', value: `MZN ${fmt(valueMzn)}`, note: '\u975e\u5be9\u8a08\u6536\u5165' },
+      { label: '\u5831\u544a\u671f\u9593', value: '2026', note: '\u516d\u500b\u6708\u8a18\u9304' }
+    ],
+    sections: [
+      { title: '\u6295\u8cc7\u8005\u91cd\u9ede', body: `\u7d2f\u8a08\u5be6\u969b\u7522\u91cf\u70ba ${fmt(totalKg / 1000)} \u5678\uff0c\u76ee\u6a19\u70ba ${fmt(targetKg / 1000)} \u5678\uff0c\u9054\u6210\u7387\u70ba ${(totalKg / targetKg * 100).toFixed(1)}%。\u5df2\u8a18\u9304\u751f\u7522\u50f9\u503c\u70ba MZN ${fmt(valueMzn)}\u3002` },
+      { title: '\u6bcf\u6708\u751f\u7522\u8868\u73fe', html: `<table><thead><tr><th>\u671f\u9593</th><th class="right">\u5be6\u969b\u7522\u91cf</th><th class="right">\u76ee\u6a19</th><th class="right">\u9054\u6210\u7387</th><th class="right">\u5df2\u8a18\u9304\u50f9\u503c</th></tr></thead><tbody>${rows.map((row, index) => { const output = row.cajuKg + row.feijaoKg; return `<tr><td>${periodNames[index] || `\u671f\u9593 ${index + 1}`}</td><td class="right">${fmt(output / 1000)} \u5678</td><td class="right">${fmt(row.targetKg / 1000)} \u5678</td><td class="right">${(output / row.targetKg * 100).toFixed(0)}%</td><td class="right">MZN ${fmt(row.totalValueMzn)}</td></tr>`; }).join('')}</tbody></table>` },
+      { title: '\u7ba1\u7406\u5c64\u89c0\u5bdf', body: `\u7522\u91cf\u8f03\u8a08\u5283\u9ad8\u51fa ${fmt((totalKg - targetKg) / 1000)} \u5678\uff0c\u986f\u793a\u672c\u671f\u751f\u7522\u57f7\u884c\u529b\u9ad8\u65bc\u8a08\u5283\u3002\u8170\u679c\u662f\u4e3b\u8981\u7522\u91cf\u4f86\u6e90\uff1b\u8c46\u985e\u63d0\u4f9b\u591a\u5143\u5316\u7684\u88dc\u5145\u7522\u51fa\u3002` },
+      { title: '\u98a8\u96aa\u8207\u6cbb\u7406', html: `<p class="warning">\u7cfb\u7d71\u76ee\u524d\u8a18\u9304\u706b\u707d\u3001\u6536\u6210\u7a97\u53e3\u5f37\u964d\u96e8\u53ca\u5f37\u98a8\u7b49\u672a\u89e3\u6c7a\u7684\u95dc\u9375\u71df\u904b\u8b66\u5831\u3002\u672c\u7c21\u5831\u4f7f\u7528\u7cfb\u7d71\u8a18\u9304\u7684\u751f\u7522\u8cc7\u6599\uff1b\u5df2\u8a18\u9304\u751f\u7522\u50f9\u503c\u4e0d\u7b49\u540c\u65bc\u7d93\u5be9\u8a08\u6536\u5165\u6216\u5229\u6f64\u3002</p>` }
+    ]
+  });
+}
+
+function exportCouncilBriefingPdfLegacy() {
   const rows = MECUZI_DATA.yieldData;
   const totalKg = rows.reduce((sum, row) => sum + row.cajuKg + row.feijaoKg, 0);
   const targetKg = rows.reduce((sum, row) => sum + row.targetKg, 0);
